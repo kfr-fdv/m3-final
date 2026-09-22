@@ -31,6 +31,7 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.local"
 testpaths = ["apps", "tests"]
+python_files = ["test_*.py", "*_test.py", "tests.py"]
 addopts = "-ra --ignore=local_docs"
 
 
