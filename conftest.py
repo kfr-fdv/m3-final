@@ -25,3 +25,10 @@ def product(category: Category) -> Product:
         price=Decimal("5.99"),
         stock=10,
     )
+
+
+@pytest.fixture
+def api_client():
+    from rest_framework.test import APIClient
+
+    return APIClient()

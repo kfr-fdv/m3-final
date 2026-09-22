@@ -31,6 +31,7 @@ dev = [
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.local"
 testpaths = ["apps", "tests"]
+python_files = ["test_*.py", "*_test.py", "tests.py"]
 addopts = "-ra --ignore=local_docs"
 
 
@@ -78,6 +79,10 @@ exclude = ["migrations/", "local_docs/"]
 
 [[tool.mypy.overrides]]
 module = "environ"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "django_filters.*"
 ignore_missing_imports = true
 
 
