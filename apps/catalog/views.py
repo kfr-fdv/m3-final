@@ -1,14 +1,14 @@
 # Create your views here.
-from django.views.generic import TemplateView, DetailView, ListView
+from django.views.generic import DetailView, ListView, TemplateView
 
 from .filters import ProductFilter
-from .models import Product, Category
+from .models import Category, Product
 
 
 class HomeView(TemplateView):
     template_name = "catalog/home.html"
 
-    def get_context_data(self, **kwargs) :
+    def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         context["featured_products"] = Product.objects.for_listing()[:8]
@@ -29,9 +29,7 @@ class ProductDetailView(DetailView):
 
         context["reviews"] = product.reviews.select_related("user")
         context["related_products"] = (
-            Product.objects.for_listing()
-            .filter(category=product.category)
-            .exclude(pk=product.pk)
+            Product.objects.for_listing().filter(category=product.category).exclude(pk=product.pk)
         )
 
         return context
@@ -46,12 +44,10 @@ class ProductListView(ListView):
         self.filter = ProductFilter(self.request.GET, queryset=Product.objects.for_listing())
         return self.filter.qs
 
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         context["filter"] = self.filter
         context["categories"] = Category.objects.filter(parent__isnull=True)
-
 
         return context

@@ -80,6 +80,10 @@ exclude = ["migrations/", "local_docs/"]
 module = "environ"
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = "django_filters.*"
+ignore_missing_imports = true
+
 
 [tool.django-stubs]
 django_settings_module = "config.settings.local"
