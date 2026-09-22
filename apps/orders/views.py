@@ -2,8 +2,6 @@ from typing import Any, cast
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.db import transaction
-from django.db.models import F
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
@@ -16,7 +14,7 @@ from .cart import Cart
 from .emails import send_order_created_emails
 from .forms import CartAddForm, CheckoutForm
 from .models import Order
-from .services import OutOfStock, create_order_from_cart
+from .services import OutOfStock, cancel_order, create_order_from_cart
 
 
 class CartView(TemplateView):
@@ -147,13 +145,8 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
 class OrderCancelView(LoginRequiredMixin, View):
     def post(self, request: HttpRequest, pk: int) -> HttpResponse:
         order = get_object_or_404(Order, pk=pk, user=request.user)
-        if not order.can_cancel:
+        if cancel_order(order):
+            messages.success(request, f"Замовлення #{order.pk} скасовано.")
+        else:
             messages.error(request, "Це замовлення вже не можна скасувати.")
-            return redirect(order.get_absolute_url())
-        with transaction.atomic():
-            for item in order.items.all():
-                Product.objects.filter(pk=item.product_id).update(stock=F("stock") + item.quantity)
-            order.status = Order.OrderStatus.CANCELLED
-            order.save(update_fields=["status", "updated_at"])
-        messages.success(request, f"Замовлення #{order.pk} скасовано.")
         return redirect(order.get_absolute_url())
