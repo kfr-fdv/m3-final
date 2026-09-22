@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.db.models import DecimalField, F, Sum
+from django.urls import reverse
 
 from apps.catalog.models import Product
 from apps.core.models import TimeStampedModel
@@ -16,6 +17,13 @@ class Order(TimeStampedModel):
         DELIVERED = "delivered", "Delivered"
         CANCELLED = "cancelled", "Cancelled"
 
+    class PaymentMethod(models.TextChoices):
+        CARD = "card", "Credit / Debit Card"
+        CASH = "cash", "Cash on Delivery"
+
+    # Статуси, за яких замовлення ще можна скасувати.
+    CANCELLABLE_STATUSES = {OrderStatus.PENDING, OrderStatus.PAID}
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -24,7 +32,14 @@ class Order(TimeStampedModel):
     status = models.CharField(
         choices=OrderStatus.choices, default=OrderStatus.PENDING, max_length=10
     )
+    payment_method = models.CharField(
+        choices=PaymentMethod.choices, default=PaymentMethod.CARD, max_length=10
+    )
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("0"))
+    # Контактні дані отримувача — знімок на момент оформлення замовлення.
+    full_name = models.CharField(max_length=150, blank=True)
+    email = models.EmailField(blank=True)
+    phone = models.CharField(max_length=32, blank=True)
     shipping_address = models.TextField()
 
     class Meta:
@@ -33,22 +48,13 @@ class Order(TimeStampedModel):
     def __str__(self) -> str:
         return f"Order #{self.pk}"
 
-    # TODO: override save() щоб розрахувати total_price з OrderItem[] +
-    # def save(self, *args, **kwargs):
-    #     # Спочатку зберігаємо саме замовлення, щоб у нього з'явився ID в базі (якщо це нове замовлення)
-    #     is_new = self.pk is None
-    #     super().save(*args, **kwargs)
-    #
-    #     # Якщо замовлення вже існувало або ми перераховуємо суму після додавання OrderItem
-    #     if not is_new and self.items.exists():
-    #         # Рахуємо суму всіх пов'язаних OrderItem через property total
-    #         total = sum(item.total for item in self.items.all())
-    #
-    #         # Якщо порахована сума відрізняється від поточної total_price, оновлюємо її
-    #         if self.total_price != total:
-    #             self.total_price = total
-    #             # Використовуємо update_fields, щоб уникнути нескінченної рекурсії при повторному save()
-    #             super().save(update_fields=["total_price"])
+    def get_absolute_url(self) -> str:
+        return reverse("orders:order_detail", kwargs={"pk": self.pk})
+
+    @property
+    def can_cancel(self) -> bool:
+        """Чи можна скасувати замовлення у поточному статусі."""
+        return self.status in self.CANCELLABLE_STATUSES
 
     def recalculate_total(self) -> Decimal:
         """Recalculate total_price from the current order items."""
@@ -81,6 +87,6 @@ class OrderItem(models.Model):
         return f"{self.product} x {self.quantity}"
 
     @property
-    def total(self) -> Decimal:
-        # TODO: підрахунок загальної ціни цього продукту в замовленні +
+    def line_total(self) -> Decimal:
+        """Загальна вартість цієї позиції замовлення (ціна × кількість)."""
         return Decimal(self.quantity) * self.price
