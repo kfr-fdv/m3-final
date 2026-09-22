@@ -97,5 +97,16 @@ MEDIA_ROOT = BASE_DIR / "media"
 SHOP_NAME = env("SHOP_NAME", default="Hop & Barley")
 SHOP_CURRENCY = "$"
 
+# Автентифікація (веб, session-based)
+LOGIN_URL = "accounts:login"
+LOGIN_REDIRECT_URL = "accounts:profile"
+LOGOUT_REDIRECT_URL = "catalog:home"
+
+# Email. За замовчуванням — консольний backend (листи друкуються в лог, нікуди не йдуть).
+# На проді перевизначається через env (SMTP).
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="no-reply@hopandbarley.local")
+ORDER_ADMIN_EMAIL = env("ORDER_ADMIN_EMAIL", default="orders@hopandbarley.local")
+
 
 REST_FRAMEWORK: dict = {}
