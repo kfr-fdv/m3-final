@@ -1,5 +1,8 @@
-# Create your views here.
 from django.views.generic import DetailView, ListView, TemplateView
+
+from apps.orders.forms import CartAddForm
+from apps.reviews.forms import ReviewForm
+from apps.reviews.services import user_can_review
 
 from .filters import ProductFilter
 from .models import Category, Product
@@ -29,8 +32,14 @@ class ProductDetailView(DetailView):
 
         context["reviews"] = product.reviews.select_related("user")
         context["related_products"] = (
-            Product.objects.for_listing().filter(category=product.category).exclude(pk=product.pk)
+            Product.objects.for_listing()
+            .filter(category=product.category)
+            .exclude(pk=product.pk)[:4]
         )
+        context["cart_form"] = CartAddForm()
+        context["can_review"] = user_can_review(self.request.user, product)
+        if context["can_review"]:
+            context["review_form"] = ReviewForm()
 
         return context
 

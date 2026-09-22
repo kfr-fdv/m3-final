@@ -26,15 +26,15 @@ class ProductFilter(filters.FilterSet):
         fields: list[str] = []
 
     def filter_search(self, queryset, name, value):
-        # TODO: """K4-G1: search in name and description."""
-        return queryset
+        """K4-G1: пошук за назвою та описом товару."""
+        return queryset.filter(self._search_query(value))
 
     def filter_category(self, queryset, name, value):
-        # TODO: """K4-G2: filter by category slug, including its child categories."""
+        """K4-G2: фільтр за slug категорії разом з усіма її підкатегоріями."""
         category = Category.objects.filter(slug=value).first()
         if category is None:
             return queryset
-        return queryset.filter(category=category)
+        return queryset.filter(category_id__in=self._descendant_ids(category))
 
     def filter_in_stock(self, queryset, name, value):
         if not value:
@@ -44,3 +44,16 @@ class ProductFilter(filters.FilterSet):
     @staticmethod
     def _search_query(value: str) -> Q:
         return Q(name__icontains=value) | Q(description__icontains=value)
+
+    @staticmethod
+    def _descendant_ids(category: Category) -> list[int]:
+        """Id категорії та всіх її нащадків (довільна глибина вкладеності)."""
+        ids = [category.pk]
+        frontier = [category.pk]
+        while frontier:
+            children = list(
+                Category.objects.filter(parent_id__in=frontier).values_list("pk", flat=True)
+            )
+            ids.extend(children)
+            frontier = children
+        return ids
