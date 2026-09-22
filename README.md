@@ -1,5 +1,7 @@
 # Hop & Barley — інтернет-магазин (Django / DRF)
 
+[![CI](https://github.com/kfr-fdv/m3-final/actions/workflows/ci.yml/badge.svg)](https://github.com/kfr-fdv/m3-final/actions/workflows/ci.yml)
+
 Навчальний інтернет-магазин товарів для домашнього пивоваріння: веб-вітрина на Django-шаблонах
 із session-автентифікацією та REST API з JWT для зовнішніх клієнтів. Інфраструктура — PostgreSQL
 у Docker, менеджер залежностей — `uv`.
