@@ -1,5 +1,5 @@
 import django_filters as filters
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 
 from .models import Category, Product
 
