@@ -1,11 +1,17 @@
 from typing import Any, cast
 
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import generics, permissions, serializers, status, views, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.catalog.filters import ProductFilter
 from apps.catalog.models import Product
@@ -13,7 +19,7 @@ from apps.orders.cart import Cart
 from apps.orders.models import Order
 from apps.orders.services import cancel_order
 from apps.reviews.models import Review
-from apps.reviews.services import user_can_review
+from apps.reviews.services import can_review
 
 from .permissions import IsOwner
 from .serializers import (
@@ -28,6 +34,21 @@ from .serializers import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Список товарів",
+        description=(
+            "Пагінований список активних товарів. Підтримує фільтри "
+            "(`category`, `in_stock`, `min_price`, `max_price`), пошук за назвою й "
+            "описом (`search`) та сортування (`ordering`: price, created_at, "
+            "rating_avg, sold_qty)."
+        ),
+    ),
+    retrieve=extend_schema(
+        summary="Деталі товару",
+        responses={200: ProductSerializer, 404: OpenApiResponse(description="Товар не знайдено.")},
+    ),
+)
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     """Список та деталі товарів: пагінація, фільтри, пошук, сортування."""
 
@@ -39,6 +60,26 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["price", "created_at", "rating_avg", "sold_qty"]
 
 
+@extend_schema_view(
+    get=extend_schema(summary="Відгуки товару"),
+    post=extend_schema(
+        summary="Залишити відгук",
+        description="Створити відгук. Дозволено лише після покупки товару і лише один раз.",
+        responses={
+            201: ReviewSerializer,
+            403: OpenApiResponse(
+                description="Відгук недоступний: товар не куплено або відгук уже залишено."
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                "Відгук",
+                value={"rating": 5, "comment": "Чудовий хміль, аромат — вогонь!"},
+                request_only=True,
+            ),
+        ],
+    ),
+)
 class ProductReviewsView(generics.ListCreateAPIView):
     """Відгуки товару: GET — список, POST — створити (лише після покупки)."""
 
@@ -51,11 +92,55 @@ class ProductReviewsView(generics.ListCreateAPIView):
 
     def perform_create(self, serializer: Any) -> None:
         product = get_object_or_404(Product, pk=self.kwargs["product_id"], is_active=True)
-        if not user_can_review(self.request.user, product):
+        if not can_review(self.request.user, product):
             raise PermissionDenied("Відгук можна залишити лише після покупки і лише раз.")
         serializer.save(product=product, user=self.request.user)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="Мої замовлення"),
+    retrieve=extend_schema(
+        summary="Замовлення за ID",
+        responses={
+            200: OrderSerializer,
+            404: OpenApiResponse(
+                description="Замовлення не знайдено або належить іншому користувачу."
+            ),
+        },
+    ),
+    create=extend_schema(
+        summary="Створити замовлення",
+        responses={
+            201: OrderCreateSerializer,
+            400: OpenApiResponse(
+                description="Порожній кошик, неіснуючий товар або недостатньо на складі."
+            ),
+        },
+        examples=[
+            OpenApiExample(
+                "Нове замовлення",
+                value={
+                    "full_name": "Олена Шевченко",
+                    "email": "olena@example.com",
+                    "phone": "+380991112233",
+                    "shipping_address": "Київ, Відділення №1",
+                    "payment_method": "card",
+                    "items": [{"product": 1, "quantity": 2}],
+                },
+                request_only=True,
+            ),
+        ],
+    ),
+    update=extend_schema(summary="Змінити статус замовлення"),
+    partial_update=extend_schema(summary="Змінити статус замовлення (частково)"),
+    destroy=extend_schema(
+        summary="Скасувати замовлення",
+        responses={
+            204: None,
+            400: OpenApiResponse(description="Замовлення вже не можна скасувати."),
+        },
+    ),
+)
 class OrderViewSet(viewsets.ModelViewSet):
     """Замовлення поточного користувача: створення, перегляд, зміна статусу, скасування."""
 
@@ -96,6 +181,16 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    summary="Реєстрація користувача",
+    examples=[
+        OpenApiExample(
+            "Новий користувач",
+            value={"username": "newuser", "email": "user@example.com", "password": "StrongPass123!"},
+            request_only=True,
+        ),
+    ],
+)
 class RegisterView(generics.CreateAPIView):
     """Реєстрація нового користувача."""
 
@@ -115,32 +210,45 @@ class CartAPIView(views.APIView):
             "total": cart.total,
         }
 
-    @extend_schema(responses=CartLineSerializer(many=True))
+    @extend_schema(summary="Переглянути кошик", responses=CartLineSerializer(many=True))
     def get(self, request: Request) -> Response:
-        return Response(self._data(Cart(request)))
+        return Response(self._data(Cart(request.session)))
 
-    @extend_schema(request=CartItemInputSerializer, responses=CartLineSerializer(many=True))
+    @extend_schema(
+        summary="Додати товар у кошик",
+        request=CartItemInputSerializer,
+        responses=CartLineSerializer(many=True),
+    )
     def post(self, request: Request) -> Response:
         serializer = CartItemInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        cart = Cart(request)
+        cart = Cart(request.session)
         cart.add(serializer.validated_data["product"], serializer.validated_data["quantity"])
         return Response(self._data(cart))
 
-    @extend_schema(request=CartItemInputSerializer, responses=CartLineSerializer(many=True))
+    @extend_schema(
+        summary="Встановити кількість товару",
+        request=CartItemInputSerializer,
+        responses=CartLineSerializer(many=True),
+    )
     def patch(self, request: Request) -> Response:
         serializer = CartItemInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        cart = Cart(request)
-        cart.add(
+        cart = Cart(request.session)
+        cart.update(
             serializer.validated_data["product"],
             serializer.validated_data["quantity"],
-            replace=True,
         )
         return Response(self._data(cart))
 
+    @extend_schema(
+        summary="Видалити товар або очистити кошик",
+        description="Якщо передано `product` — видаляє цю позицію; без тіла — очищує весь кошик.",
+        request=CartItemInputSerializer,
+        responses=CartLineSerializer(many=True),
+    )
     def delete(self, request: Request) -> Response:
-        cart = Cart(request)
+        cart = Cart(request.session)
         data = request.data if isinstance(request.data, dict) else {}
         product_id = data.get("product")
         if product_id:
@@ -148,3 +256,19 @@ class CartAPIView(views.APIView):
         else:
             cart.clear()
         return Response(self._data(cart))
+
+
+@extend_schema(
+    summary="Вхід (отримати JWT)",
+    description="Приймає ім'я користувача та пароль, повертає пару токенів `access`/`refresh`.",
+)
+class LoginView(TokenObtainPairView):
+    """Отримання JWT-токенів за логіном і паролем."""
+
+
+@extend_schema(
+    summary="Оновити access-токен",
+    description="Приймає дійсний `refresh`-токен і повертає новий `access`-токен.",
+)
+class RefreshTokenView(TokenRefreshView):
+    """Оновлення access-токена за refresh-токеном."""

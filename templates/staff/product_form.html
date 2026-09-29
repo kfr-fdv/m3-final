@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}{% if object %}{{ object.name }}{% else %}Новий товар{% endif %}{% endblock %}
+
+{% block content %}
+<main class="admin-page-wrapper">
+    <div class="admin-container">
+        {% include "staff/_tabs.html" with active="products" %}
+
+        <div class="admin-content">
+            <h1 class="admin-content__title">{% if object %}Редагування товару{% else %}Новий товар{% endif %}</h1>
+            {% include "partials/form_errors.html" with form=form %}
+
+            <div class="admin-form-layout">
+                <div class="admin-form-col-left">
+                    <h2 class="admin-form-section-title">Фото</h2>
+                    <div class="image-upload-card">
+                        {% if object.image %}
+                            <div class="image-upload-placeholder" style="background-image: url('{{ object.image.url }}'); background-size: cover; background-position: center;"></div>
+                        {% else %}
+                            <div class="image-upload-placeholder">
+                                <i class="fa-regular fa-image"></i>
+                            </div>
+                        {% endif %}
+                        <input type="file" id="image-upload-input" name="image" form="product-form" class="is-hidden" accept="image/*">
+                        <button type="button" class="button button--primary upload-btn" id="upload-image-btn">Завантажити фото</button>
+                    </div>
+                </div>
+
+                <div class="admin-form-col-right">
+                    <h2 class="admin-form-section-title">Інформація</h2>
+                    <form id="product-form" class="product-info-form" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="checkout-form-group">
+                            <label for="prod-title">Назва</label>
+                            <input type="text" id="prod-title" name="name" value="{{ form.name.value|default:'' }}" class="Input" placeholder="" required>
+                        </div>
+                        <div class="checkout-form-group">
+                            <label for="prod-description">Опис</label>
+                            <textarea id="prod-description" name="description" class="Textarea" placeholder="" rows="4">{{ form.description.value|default:'' }}</textarea>
+                        </div>
+                        <div class="checkout-form-group">
+                            <label for="prod-price">Ціна</label>
+                            <input type="text" id="prod-price" name="price" value="{{ form.price.value|default:'' }}" class="Input" placeholder="" inputmode="decimal" required>
+                        </div>
+                        <div class="checkout-form-group">
+                            <label for="prod-stock">Залишок на складі</label>
+                            <input type="number" id="prod-stock" name="stock" value="{{ form.stock.value|default:0 }}" class="Input" placeholder="" min="0" required>
+                        </div>
+                        <div class="checkout-form-group">
+                            <label>Категорія</label>
+                            <div class="category-tags">
+                                {% for choice in form.category %}
+                                    <label class="category-tag{% if choice.data.selected %} active{% endif %}">
+                                        {{ choice.tag }}<i class="fa-solid fa-check"></i>{{ choice.choice_label }}
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Control buttons -->
+                <div class="admin-form-actions">
+                    <button type="submit" form="product-form" class="button button--primary">Зберегти</button>
+                    {% if object %}
+                        <button type="submit" form="toggle-form" class="button button--secondary">{% if object.is_active %}Приховати{% else %}Показати{% endif %}</button>
+                        <button type="submit" form="delete-form" class="button button--danger" data-confirm="Видалити «{{ object.name }}»?">Видалити</button>
+                    {% else %}
+                        <button type="button" class="button button--secondary" disabled>Приховати</button>
+                        <button type="button" class="button button--danger" disabled>Видалити</button>
+                    {% endif %}
+                </div>
+            </div>
+            {% if object %}
+                <form id="toggle-form" method="post" action="{% url 'staff:product_toggle' object.pk %}" hidden>{% csrf_token %}</form>
+                <form id="delete-form" method="post" action="{% url 'staff:product_delete' object.pk %}" hidden>{% csrf_token %}</form>
+            {% endif %}
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block footer %}{% endblock %}

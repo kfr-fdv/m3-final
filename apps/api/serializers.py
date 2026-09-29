@@ -53,7 +53,9 @@ class ReviewSerializer(serializers.ModelSerializer):
 class OrderItemSerializer(serializers.ModelSerializer):
     product = serializers.CharField(source="product.name", read_only=True)
     product_id = serializers.IntegerField(read_only=True)
-    line_total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    line_total = serializers.DecimalField(
+        max_digits=10, decimal_places=2, read_only=True, source="total"
+    )
 
     class Meta:
         model = OrderItem
@@ -89,6 +91,9 @@ class OrderSerializer(serializers.ModelSerializer):
 
 class OrderCreateSerializer(serializers.ModelSerializer):
     items = OrderItemInputSerializer(many=True, write_only=True)
+    # full_name у моделі — це property (last/first/middle), тож приймаємо його
+    # окремим рядковим полем і зберігаємо у first_name в сервісі.
+    full_name = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
 
     class Meta:
         model = Order
@@ -109,19 +114,25 @@ class OrderCreateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data: dict) -> Order:
-        from apps.orders.services import OutOfStock, create_order
+        from apps.orders.services import CheckoutError, OutOfStock, create_api_order
 
         items = [(row["product"].pk, row["quantity"]) for row in validated_data.pop("items")]
         try:
-            return create_order(
+            return create_api_order(
                 self.context["request"].user,
                 items,
-                **validated_data,
+                shipping_address=validated_data.get("shipping_address", ""),
+                payment_method=validated_data.get("payment_method", Order.PaymentMethod.CARD),
+                full_name=validated_data.get("full_name", ""),
+                email=validated_data.get("email", ""),
+                phone=validated_data.get("phone", ""),
             )
         except OutOfStock as exc:
             raise serializers.ValidationError(
                 {"items": f"Недостатньо «{exc.product.name}» на складі."}
             ) from exc
+        except CheckoutError as exc:
+            raise serializers.ValidationError({"items": str(exc)}) from exc
 
 
 class OrderStatusSerializer(serializers.ModelSerializer):

@@ -8,121 +8,107 @@
     <div class="container">
         <section class="product-details-section">
             <div class="product-image-container">
-                {% if product.image %}
-                    <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image">
-                {% else %}
-                    <div class="product-image product-card__image--placeholder">
-                        <img src="{% static 'img/logo.svg' %}" alt="{{ SHOP_NAME }}">
-                    </div>
-                {% endif %}
+                {% include "partials/product_image.html" with product=product css_class="product-image" %}
             </div>
+
             <div class="product-info-column">
                 <div class="product-title-price">
                     <h1 class="product-name">{{ product.name }}</h1>
-                    {% if product.category %}
-                        <p><a href="{{ product.category.get_absolute_url }}" class="price-tag">{{ product.category.name }}</a></p>
-                    {% endif %}
                     <div class="price-section">
+                        <span class="price-tag">{{ product.category.name }}</span>
                         <p class="product-price">{{ product.price|money }}</p>
                     </div>
-                    <div class="product-card__rating">
-                        {% stars product.rating_avg %}
-                        <span class="product-card__rating-count">({{ product.rating_count|default:0 }} reviews)</span>
-                    </div>
-                    {% if product.in_stock %}
-                        <span class="badge badge--in-stock">In stock ({{ product.stock }})</span>
-                    {% else %}
-                        <span class="badge badge--out-of-stock">Out of stock</span>
-                    {% endif %}
                 </div>
+
                 <div class="product-description">
                     {{ product.description|linebreaks }}
                 </div>
+
                 <div class="cart-controls">
                     {% if product.in_stock %}
-                        <form method="post" action="{% url 'orders:cart_add' product.id %}" class="add-to-cart-form">
+                        <form method="post" action="{% url 'orders:cart_add' product.id %}">
                             {% csrf_token %}
-                            {% include "partials/form_errors.html" with form=cart_form %}
-                            <div class="quantity-counter" data-quantity-control>
-                                <button type="button" class="quantity-btn" data-action="decrease" aria-label="Decrease quantity">
-                                    <i class="fa-solid fa-minus"></i>
-                                </button>
-                                <input type="number" name="quantity" min="1" value="{{ cart_form.quantity.value|default:1 }}" class="quantity-input">
-                                <button type="button" class="quantity-btn" data-action="increase" aria-label="Increase quantity">
-                                    <i class="fa-solid fa-plus"></i>
-                                </button>
-                            </div>
-                            <button type="submit" class="button button--primary add-to-cart-button">
+                            <input type="hidden" name="quantity" value="1">
+                            <button type="submit" class="button button--primary add-to-cart-button" id="add-to-cart-btn">
                                 <i class="fa-solid fa-cart-shopping"></i>
-                                <span>Add to Cart</span>
+                                <span>Додати в кошик</span>
                             </button>
                         </form>
                     {% else %}
-                        <button class="button button--primary add-to-cart-button" disabled>Out of stock</button>
+                        <button type="button" class="button button--primary add-to-cart-button" disabled>Немає в наявності</button>
                     {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <section class="accordion-section">
+            <div class="accordion-item">
+                <div class="accordion-title">
+                    <h3>Характеристики</h3>
+                    <i class="fa-solid fa-chevron-down accordion-icon"></i>
+                </div>
+                <div class="accordion-content">
+                    <ul>
+                        <li><strong>Категорія:</strong> {{ product.category.name }}</li>
+                        <li><strong>На складі:</strong> {{ product.stock }} шт.</li>
+                        <li><strong>Рейтинг:</strong> {{ product.rating_avg|floatformat:1 }} / 5 (відгуків: {{ product.rating_count }})</li>
+                        <li><strong>Артикул:</strong> {{ product.slug }}</li>
+                    </ul>
                 </div>
             </div>
         </section>
 
         <section class="reviews-section">
-            <h2 class="reviews-title">Latest reviews</h2>
+            <h2 class="reviews-title">Останні відгуки</h2>
 
             {% if reviews %}
                 <div class="reviews-grid">
                     {% for review in reviews %}
+                        {% cycle 'img/avatars/avatar1.svg' 'img/avatars/avatar2.svg' 'img/avatars/avatar3.svg' 'img/avatars/avatar4.svg' 'img/avatars/avatar5.svg' as avatar silent %}
                         <div class="review-card">
-                            <div class="review-rating">{% stars review.rating %}</div>
+                            <div class="review-rating">
+                                {% for star in "12345" %}
+                                    {% if forloop.counter <= review.rating %}
+                                        <i class="fa-solid fa-star"></i>
+                                    {% else %}
+                                        <i class="fa-regular fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
                             <div class="review-body">
-                                <p class="review-text">{{ review.comment }}</p>
+                                <h4 class="review-heading">{{ review.rating|rating_label }}</h4>
+                                <p class="review-text">{{ review.comment|default:"Без коментаря." }}</p>
                             </div>
                             <div class="review-author">
-                                <span class="author-name">{{ review.user.username }}</span>
-                                <span class="review-date">{{ review.created_at|date }}</span>
+                                <img src="{% static avatar %}" alt="Аватар" class="author-avatar">
+                                <span class="author-name">{{ review.user.get_full_name|default:review.user.username }}</span>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
             {% else %}
-                <p class="empty-state">No reviews yet. Be the first to share your experience.</p>
+                <p class="review-text">Відгуків поки немає.</p>
             {% endif %}
 
             {% if can_review %}
                 <form method="post" action="{% url 'reviews:create' product.slug %}" class="review-form">
                     {% csrf_token %}
-                    {% include "partials/form_errors.html" with form=review_form %}
                     <div class="review-form__field">
-                        <span class="review-form__label">Your rating</span>
+                        <span class="review-form__label">Ваша оцінка</span>
                         <div class="review-form__rating">
                             {% for radio in review_form.rating %}
-                                <label class="review-form__rating-option">
-                                    {{ radio.tag }} {{ radio.choice_label }}
-                                </label>
+                                <label class="review-form__rating-option">{{ radio.tag }} {{ radio.choice_label }}</label>
                             {% endfor %}
                         </div>
                     </div>
                     <div class="review-form__field">
-                        <label for="{{ review_form.comment.id_for_label }}">Comment</label>
-                        <textarea id="{{ review_form.comment.id_for_label }}" name="{{ review_form.comment.html_name }}" class="Textarea" rows="3">{{ review_form.comment.value|default:'' }}</textarea>
+                        <label for="{{ review_form.comment.id_for_label }}">Коментар</label>
+                        <textarea id="{{ review_form.comment.id_for_label }}" name="{{ review_form.comment.html_name }}" class="Textarea" rows="3"></textarea>
                     </div>
-                    <button type="submit" class="button button--primary">Submit review</button>
+                    <button type="submit" class="button button--primary">Надіслати відгук</button>
                 </form>
-            {% elif not user.is_authenticated %}
-                <p class="review-form__login-prompt">
-                    <a href="{% url 'accounts:login' %}?next={{ request.path }}">Sign in</a> to leave a review after your order is delivered.
-                </p>
-            {% endif %}
+{% endif %}
         </section>
-
-        {% if related_products %}
-        <section class="related-products">
-            <h2 class="reviews-title">You may also like</h2>
-            <div class="product-grid">
-                {% for related in related_products %}
-                    {% include "partials/product_card.html" with product=related %}
-                {% endfor %}
-            </div>
-        </section>
-        {% endif %}
     </div>
 </main>
 {% endblock %}

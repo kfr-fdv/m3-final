@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 
-{% block title %}Page not found{% endblock %}
+{% block title %}Сторінку не знайдено{% endblock %}
 
 {% block content %}
 <main class="static-page-wrapper">
     <div class="container">
         <div class="static-page-content">
             <h1 class="static-page-title">404</h1>
-            <p class="static-page-subtitle">Page not found</p>
+            <p class="static-page-subtitle">Сторінку не знайдено</p>
             <div class="static-page-text">
-                <p>Sorry, the page you are looking for does not exist or has been moved.</p>
+                <p>Такої сторінки немає або її перенесли.</p>
             </div>
-            <a href="{% url 'catalog:home' %}" class="button button--primary">Back to Home</a>
+            <a href="{% url 'catalog:home' %}" class="button button--primary">На головну</a>
         </div>
     </div>
 </main>

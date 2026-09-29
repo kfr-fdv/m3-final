@@ -7,17 +7,18 @@ from django.views import View
 from apps.catalog.models import Product
 
 from .forms import ReviewForm
-from .services import user_can_review
+from .services import can_review
 
 
 class ReviewCreateView(LoginRequiredMixin, View):
-    """Створення відгуку — лише після покупки товару і не повторно."""
+    http_method_names = ["post"]
 
     def post(self, request: HttpRequest, slug: str) -> HttpResponse:
-        product = get_object_or_404(Product, slug=slug, is_active=True)
-        if not user_can_review(request.user, product):
-            messages.error(request, "Залишити відгук можна лише після покупки товару.")
-            return redirect(product.get_absolute_url())
+        product = get_object_or_404(Product.objects.active(), slug=slug)
+        if not can_review(request.user, product):
+            messages.error(request, "Відгук можна залишити один раз і лише після покупки.")
+            return redirect(product)
+
         form = ReviewForm(request.POST)
         if form.is_valid():
             review = form.save(commit=False)
@@ -26,5 +27,5 @@ class ReviewCreateView(LoginRequiredMixin, View):
             review.save()
             messages.success(request, "Дякуємо за відгук!")
         else:
-            messages.error(request, "Не вдалося зберегти відгук. Перевірте форму.")
-        return redirect(product.get_absolute_url())
+            messages.error(request, "Оберіть оцінку від 1 до 5.")
+        return redirect(product)

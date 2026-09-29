@@ -7,34 +7,79 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // --- Quantity +/- buttons: progressive enhancement on top of a real
-    // <input type="number" name="quantity" class="quantity-input">.
-    // Every wrapper that carries [data-quantity-control] (the product
-    // detail quantity counter, the cart line quantity selector) is wired
-    // the same way: the buttons only ever change the sibling input's
-    // value, they never fake add-to-cart/remove state themselves — the
-    // surrounding <form> still does a real POST on submit.
-    document.querySelectorAll('[data-quantity-control]').forEach(function (wrapper) {
-        var input = wrapper.querySelector('.quantity-input');
-        if (!input) {
+    // --- Catalog: "Product Type" checkboxes apply the filter right away ---
+    document.querySelectorAll('[data-autosubmit]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            document.getElementById(input.getAttribute('form')).submit();
+        });
+    });
+
+    // --- Account page tabs (from the design mockup) ---
+    var accountTabs = document.querySelectorAll('.account-tab');
+    var tabPanes = document.querySelectorAll('.tab-pane');
+
+    function openTab(selector) {
+        var target = document.querySelector(selector);
+        if (!target) {
             return;
         }
-        var min = parseInt(input.min, 10) || 1;
-        var decreaseBtn = wrapper.querySelector('[data-action="decrease"]');
-        var increaseBtn = wrapper.querySelector('[data-action="increase"]');
+        accountTabs.forEach(function (tab) {
+            tab.classList.toggle('active', tab.dataset.tabTarget === selector);
+        });
+        tabPanes.forEach(function (pane) {
+            pane.classList.toggle('active', pane === target);
+        });
+    }
 
-        if (decreaseBtn) {
-            decreaseBtn.addEventListener('click', function () {
-                var value = parseInt(input.value, 10) || min;
-                input.value = Math.max(min, value - 1);
+    accountTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+            openTab(this.dataset.tabTarget);
+        });
+    });
+    if (accountTabs.length && window.location.hash) {
+        openTab(window.location.hash);
+    }
+
+    // --- Staff product form: category tags (from the design mockup) ---
+    document.querySelectorAll('.product-info-form .category-tags').forEach(function (container) {
+        container.addEventListener('change', function (event) {
+            container.querySelectorAll('.category-tag').forEach(function (tag) {
+                tag.classList.toggle('active', tag.contains(event.target));
             });
-        }
-        if (increaseBtn) {
-            increaseBtn.addEventListener('click', function () {
-                var value = parseInt(input.value, 10) || min;
-                input.value = value + 1;
-            });
-        }
+        });
+    });
+
+    // --- Staff product form: image preview (from the design mockup) ---
+    var uploadButton = document.getElementById('upload-image-btn');
+    var fileInput = document.getElementById('image-upload-input');
+    if (uploadButton && fileInput) {
+        uploadButton.addEventListener('click', function () {
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', function (event) {
+            var file = event.target.files[0];
+            if (!file) {
+                return;
+            }
+            var reader = new FileReader();
+            var placeholder = document.querySelector('.image-upload-placeholder');
+            reader.onload = function (e) {
+                placeholder.innerHTML = '';
+                placeholder.style.backgroundImage = "url('" + e.target.result + "')";
+                placeholder.style.backgroundSize = 'cover';
+                placeholder.style.backgroundPosition = 'center';
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // --- Buttons that need a confirmation (e.g. Delete product) ---
+    document.querySelectorAll('[data-confirm]').forEach(function (button) {
+        button.addEventListener('click', function (event) {
+            if (!window.confirm(button.dataset.confirm)) {
+                event.preventDefault();
+            }
+        });
     });
 
 });

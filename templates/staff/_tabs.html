@@ -1,0 +1,4 @@
+<div class="admin-tabs">
+    <a href="{% url 'staff:products' %}" class="admin-tab{% if active == 'products' %} active{% endif %}">Керування товарами</a>
+    <a href="{% url 'staff:dashboard' %}" class="admin-tab{% if active == 'dashboard' %} active{% endif %}">Аналітика</a>
+</div>

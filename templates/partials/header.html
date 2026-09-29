@@ -7,42 +7,31 @@
         </a>
         <nav class="header__nav">
             <ul>
-                <li><a href="{% url 'catalog:product_list' %}">Products</a></li>
-                {% if categories %}
-                <li class="header__nav-dropdown">
-                    <a href="{% url 'catalog:product_list' %}">Categories</a>
-                    <ul class="header__nav-dropdown-menu">
-                        {% for category in categories %}
-                            <li><a href="{{ category.get_absolute_url }}">{{ category.name }}</a></li>
-                        {% endfor %}
-                    </ul>
-                </li>
-                {% endif %}
-                <li><a href="#">Community</a></li>
-                <li><a href="#">Resources</a></li>
-                <li><a href="#">Contact</a></li>
+                <li><a href="{% url 'catalog:product_list' %}">Каталог</a></li>
+                <li><a href="#">Гайди й рецепти</a></li>
+                <li><a href="#">Спільнота</a></li>
+                <li><a href="#">Ресурси</a></li>
+                <li><a href="#">Контакти</a></li>
             </ul>
         </nav>
 
-        <div class="header__user-actions">
-            {% if user.is_authenticated %}
-                <a href="{% url 'accounts:profile' %}" class="user-icon" aria-label="My Account">
-                    <img src="{% static 'img/icons/User_alt.svg' %}" alt="User Account">
+        {% if user.is_authenticated %}
+            <!-- Block for authorized user -->
+            <div class="header__user-actions" id="auth-user">
+                <a href="{% url 'accounts:profile' %}" class="user-icon" aria-label="Мій кабінет">
+                    <img src="{% static 'img/icons/User_alt.svg' %}" alt="Мій кабінет">
                 </a>
-            {% else %}
-                <a href="{% url 'accounts:login' %}" class="button button--secondary">Sign in</a>
-                <a href="{% url 'accounts:register' %}" class="button button--primary">Register</a>
-            {% endif %}
-            <a href="{% url 'orders:cart' %}" class="cart-icon" aria-label="Shopping Cart">
-                <img src="{% static 'img/icons/Shopping_bag.svg' %}" alt="Shopping Cart">
-                {% if cart_count %}<span class="header__cart-count">{{ cart_count }}</span>{% endif %}
-            </a>
-            {% if user.is_authenticated %}
-                <form method="post" action="{% url 'accounts:logout' %}" class="header__logout-form">
-                    {% csrf_token %}
-                    <button type="submit" class="button button--logout">Logout</button>
-                </form>
-            {% endif %}
-        </div>
+                <a href="{% url 'orders:cart' %}" class="cart-icon" aria-label="Кошик">
+                    <img src="{% static 'img/icons/Shopping_bag.svg' %}" alt="Кошик">
+                    {% if cart_count %}<span class="header__cart-count">{{ cart_count }}</span>{% endif %}
+                </a>
+            </div>
+        {% else %}
+            <!-- Block for unauthorized user -->
+            <div class="header__auth-buttons" id="auth-guest">
+                <a href="{% url 'accounts:login' %}" class="button button--secondary">Увійти</a>
+                <a href="{% url 'accounts:register' %}" class="button button--primary">Реєстрація</a>
+            </div>
+        {% endif %}
     </div>
 </header>

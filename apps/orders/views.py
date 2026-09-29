@@ -1,152 +1,123 @@
-from typing import Any, cast
+from typing import Any
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpRequest, HttpResponse, HttpResponseBase
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views import View
-from django.views.generic import DetailView, ListView, TemplateView
+from django.views.generic import FormView, TemplateView
 
 from apps.accounts.models import User
 from apps.catalog.models import Product
 
-from .cart import Cart
-from .emails import send_order_created_emails
-from .forms import CartAddForm, CheckoutForm
+from .cart import Cart, NotEnoughStock
+from .forms import CartQuantityForm, CheckoutForm
 from .models import Order
-from .services import OutOfStock, cancel_order, create_order_from_cart
+from .services import CheckoutError, create_order
 
 
 class CartView(TemplateView):
     template_name = "orders/cart.html"
 
-    def get_context_data(self, **kwargs: object) -> dict:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        cart = Cart(self.request)
-        context["lines"] = list(cart)
-        context["total"] = cart.total
-        context["is_empty"] = cart.is_empty
+        cart = Cart(self.request.session)
+        lines = list(cart)
+        context.update(
+            lines=lines,
+            total=sum((line.line_total for line in lines), 0),
+            is_empty=not lines,
+        )
         return context
 
 
-class CartAddView(View):
+class CartChangeView(View):
+    """Base for the POST-only cart actions: loads the product and the cart."""
+
+    http_method_names = ["post"]
+
     def post(self, request: HttpRequest, product_id: int) -> HttpResponse:
-        product = get_object_or_404(Product, pk=product_id, is_active=True)
-        form = CartAddForm(request.POST)
-        quantity = form.cleaned_data["quantity"] if form.is_valid() else 1
-        final = Cart(request).add(product, quantity)
-        if final == 0:
-            messages.error(request, f"«{product.name}» зараз немає в наявності.")
-        else:
-            messages.success(request, f"«{product.name}» додано до кошика.")
-        return redirect("orders:cart")
-
-
-class CartUpdateView(View):
-    def post(self, request: HttpRequest, product_id: int) -> HttpResponse:
-        product = get_object_or_404(Product, pk=product_id, is_active=True)
-        cart = Cart(request)
-        form = CartAddForm(request.POST)
-        if not form.is_valid():
-            cart.remove(product)
-            messages.info(request, f"«{product.name}» видалено з кошика.")
-        else:
-            final = cart.add(product, form.cleaned_data["quantity"], replace=True)
-            if final < form.cleaned_data["quantity"]:
-                messages.warning(request, f"Доступно лише {product.stock} шт. «{product.name}».")
-            else:
-                messages.success(request, "Кошик оновлено.")
-        return redirect("orders:cart")
-
-
-class CartRemoveView(View):
-    def post(self, request: HttpRequest, product_id: int) -> HttpResponse:
-        product = get_object_or_404(Product, pk=product_id)
-        Cart(request).remove(product)
-        messages.info(request, f"«{product.name}» видалено з кошика.")
-        return redirect("orders:cart")
-
-
-class CheckoutView(LoginRequiredMixin, View):
-    template_name = "orders/checkout.html"
-
-    def _render(self, request: HttpRequest, form: CheckoutForm) -> HttpResponse:
-        cart = Cart(request)
-        return render(
-            request,
-            self.template_name,
-            {"form": form, "lines": list(cart), "total": cart.total},
-        )
-
-    def get(self, request: HttpRequest) -> HttpResponse:
-        if Cart(request).is_empty:
-            messages.info(request, "Ваш кошик порожній.")
-            return redirect("orders:cart")
-        user = cast(User, request.user)
-        form = CheckoutForm(
-            initial={
-                "full_name": user.get_full_name() or user.get_username(),
-                "email": user.email,
-                "phone": user.phone,
-                "shipping_address": user.default_address,
-            }
-        )
-        return self._render(request, form)
-
-    def post(self, request: HttpRequest) -> HttpResponse:
-        cart = Cart(request)
-        if cart.is_empty:
-            messages.info(request, "Ваш кошик порожній.")
-            return redirect("orders:cart")
-        form = CheckoutForm(request.POST)
-        if not form.is_valid():
-            return self._render(request, form)
+        product = get_object_or_404(Product.objects.active(), pk=product_id)
+        cart = Cart(request.session)
         try:
-            order = create_order_from_cart(request.user, cart, **form.cleaned_data)
-        except OutOfStock as exc:
-            messages.error(
-                request,
-                f"Недостатньо «{exc.product.name}» на складі. Оновіть кошик.",
-            )
+            return self.change(cart, product)
+        except NotEnoughStock as error:
+            messages.error(request, str(error))
+            return redirect(self.back_url(product))
+
+    def change(self, cart: Cart, product: Product) -> HttpResponse:
+        raise NotImplementedError
+
+    def back_url(self, product: Product) -> str:
+        return reverse("orders:cart")
+
+    def quantity(self, default: int) -> int:
+        form = CartQuantityForm(self.request.POST or None)
+        return form.cleaned_data["quantity"] if form.is_valid() else default
+
+
+class CartAddView(CartChangeView):
+    def change(self, cart: Cart, product: Product) -> HttpResponse:
+        cart.add(product, max(self.quantity(default=1), 1))
+        messages.success(self.request, f"«{product.name}» додано до кошика.")
+        return redirect(self.back_url(product))
+
+    def back_url(self, product: Product) -> str:
+        return product.get_absolute_url()
+
+
+class CartUpdateView(CartChangeView):
+    def change(self, cart: Cart, product: Product) -> HttpResponse:
+        cart.update(product, self.quantity(default=0))
+        return redirect("orders:cart")
+
+
+class CartRemoveView(CartChangeView):
+    def change(self, cart: Cart, product: Product) -> HttpResponse:
+        cart.remove(product)
+        messages.info(self.request, f"«{product.name}» прибрано з кошика.")
+        return redirect("orders:cart")
+
+
+class CheckoutView(LoginRequiredMixin, FormView):
+    template_name = "orders/checkout.html"
+    form_class = CheckoutForm
+
+    def dispatch(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponseBase:
+        if request.user.is_authenticated and not Cart(request.session).items:
+            messages.info(request, "Кошик порожній.")
             return redirect("orders:cart")
-        send_order_created_emails(order)
-        cart.clear()
-        messages.success(request, f"Замовлення #{order.pk} успішно оформлено.")
-        return redirect(order.get_absolute_url())
+        return super().dispatch(request, *args, **kwargs)
 
+    def get_initial(self) -> dict[str, Any]:
+        user: User = self.request.user  # type: ignore[assignment]  # LoginRequiredMixin
+        return {
+            "last_name": user.last_name,
+            "first_name": user.first_name,
+            "middle_name": user.middle_name,
+            "phone": user.phone,
+            "payment_method": Order.PaymentMethod.CARD,
+            **user.delivery_initial(),  # saved in the account or by the previous order
+        }
 
-class OrderListView(LoginRequiredMixin, ListView):
-    template_name = "orders/order_list.html"
-    context_object_name = "orders"
-    paginate_by = 10
-
-    def get_queryset(self):
-        self.current_status = self.request.GET.get("status") or ""
-        orders = Order.objects.filter(user=self.request.user)
-        if self.current_status:
-            orders = orders.filter(status=self.current_status)
-        return orders
-
-    def get_context_data(self, **kwargs: Any) -> dict:
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
-        context["statuses"] = Order.OrderStatus.choices
-        context["current_status"] = self.current_status
+        lines = list(Cart(self.request.session))
+        context.update(
+            lines=lines,
+            items_count=sum(line.quantity for line in lines),
+            total=sum((line.line_total for line in lines), 0),
+        )
         return context
 
-
-class OrderDetailView(LoginRequiredMixin, DetailView):
-    template_name = "orders/order_detail.html"
-    context_object_name = "order"
-
-    def get_queryset(self):
-        return Order.objects.filter(user=self.request.user).prefetch_related("items__product")
-
-
-class OrderCancelView(LoginRequiredMixin, View):
-    def post(self, request: HttpRequest, pk: int) -> HttpResponse:
-        order = get_object_or_404(Order, pk=pk, user=request.user)
-        if cancel_order(order):
-            messages.success(request, f"Замовлення #{order.pk} скасовано.")
-        else:
-            messages.error(request, "Це замовлення вже не можна скасувати.")
-        return redirect(order.get_absolute_url())
+    def form_valid(self, form: CheckoutForm) -> HttpResponse:
+        cart = Cart(self.request.session)
+        try:
+            order = create_order(self.request.user, cart, form.cleaned_data)  # type: ignore[arg-type]
+        except CheckoutError as error:
+            messages.error(self.request, str(error))
+            return redirect("orders:cart")
+        cart.clear()
+        messages.success(self.request, f"Дякуємо! Замовлення №{order.pk} оформлено.")
+        return redirect(reverse("accounts:profile"))

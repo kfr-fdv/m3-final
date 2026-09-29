@@ -1,45 +1,43 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Register{% endblock %}
+{% block title %}Реєстрація{% endblock %}
 
 {% block content %}
 <main class="auth-page-wrapper">
     <div class="auth-background">
-        <img src="{% static 'img/background/pattern.jpg' %}" alt="Background pattern">
+        <img src="{% static 'img/background/pattern.jpg' %}" alt="">
     </div>
     <div class="auth-form-container">
         <div class="auth-container auth-container--register">
             <div class="Legend">
-                <h1 class="auth-title">Register</h1>
+                <h1 class="auth-title">Реєстрація</h1>
             </div>
 
-            <form class="auth-form" method="post" action="{% url 'accounts:register' %}">
+            <form class="auth-form" id="register-form" method="post" action="{% url 'accounts:register' %}">
                 {% csrf_token %}
                 {% include "partials/form_errors.html" with form=form %}
                 <div class="InputField">
-                    <label for="{{ form.username.id_for_label }}">Username</label>
-                    <input type="text" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" value="{{ form.username.value|default:'' }}" class="Input{% if form.username.errors %} is-invalid{% endif %}" required autofocus>
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" value="{{ form.email.value|default:'' }}" class="Input" placeholder="" required>
                 </div>
                 <div class="InputField">
-                    <label for="{{ form.email.id_for_label }}">Email</label>
-                    <input type="email" id="{{ form.email.id_for_label }}" name="{{ form.email.html_name }}" value="{{ form.email.value|default:'' }}" class="Input{% if form.email.errors %} is-invalid{% endif %}" required>
+                    <label for="password">Пароль</label>
+                    <input type="password" id="password" name="password" class="Input" placeholder="" required>
                 </div>
-                <div class="InputField">
-                    <label for="{{ form.password1.id_for_label }}">Password</label>
-                    <input type="password" id="{{ form.password1.id_for_label }}" name="{{ form.password1.html_name }}" class="Input{% if form.password1.errors %} is-invalid{% endif %}" required>
-                </div>
-                <div class="InputField">
-                    <label for="{{ form.password2.id_for_label }}">Confirm password</label>
-                    <input type="password" id="{{ form.password2.id_for_label }}" name="{{ form.password2.html_name }}" class="Input{% if form.password2.errors %} is-invalid{% endif %}" required>
+
+                <div class="CheckboxField">
+                    <label class="checkbox-container">Запам’ятати мене
+                        <input type="checkbox" name="remember_me" {% if form.remember_me.value %}checked{% endif %}>
+                        <span class="checkmark"></span>
+                    </label>
                 </div>
 
                 <div class="ButtonGroup">
-                    <button type="submit" class="button button--primary">Register</button>
+                    <button type="submit" class="button button--primary">Зареєструватися</button>
                 </div>
             </form>
-
-            <p class="auth-switch">Already have an account? <a href="{% url 'accounts:login' %}">Sign in</a></p>
+            <p class="auth-switch">Вже є акаунт? <a href="{% url 'accounts:login' %}">Увійти</a></p>
         </div>
     </div>
 </main>

@@ -1,5 +1,5 @@
 {% load static %}<!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,16 +18,18 @@
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body{% if user.is_authenticated %} class="user-logged-in"{% endif %}>
 {% include "partials/header.html" %}
 
+{% if messages %}
 <div class="container messages-container">
     {% include "partials/messages.html" %}
 </div>
+{% endif %}
 
 {% block content %}{% endblock %}
 
-{% include "partials/footer.html" %}
+{% block footer %}{% include "partials/footer.html" %}{% endblock %}
 
 <script src="{% static 'js/main.js' %}"></script>
 {% block extra_js %}{% endblock %}

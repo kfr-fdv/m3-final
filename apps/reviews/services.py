@@ -1,7 +1,11 @@
+from django.contrib.auth.models import AnonymousUser
+
+from apps.accounts.models import User
 from apps.catalog.models import Product
 from apps.orders.models import Order
 
-# Статуси, за яких покупка вважається здійсненою (можна залишати відгук).
+from .models import Review
+
 PURCHASED_STATUSES = (
     Order.OrderStatus.PAID,
     Order.OrderStatus.SHIPPED,
@@ -9,14 +13,12 @@ PURCHASED_STATUSES = (
 )
 
 
-def user_can_review(user, product: Product) -> bool:
-    """Чи може користувач залишити відгук: лише після покупки і не повторно."""
+def can_review(user: User | AnonymousUser, product: Product) -> bool:
+    """A user may review a product once, and only after buying it."""
     if not user.is_authenticated:
         return False
-    if product.reviews.filter(user=user).exists():
-        return False
-    return Order.objects.filter(
-        user=user,
-        status__in=PURCHASED_STATUSES,
-        items__product=product,
+    bought = Order.objects.filter(
+        user_id=user.pk, status__in=PURCHASED_STATUSES, items__product=product
     ).exists()
+    already_reviewed = Review.objects.filter(user_id=user.pk, product=product).exists()
+    return bought and not already_reviewed

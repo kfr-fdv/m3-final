@@ -27,8 +27,9 @@ def test_analytics_shows_revenue(client, django_user_model, product, user):
     assert response.context["summary"]["orders_count"] == 1
 
 
-def test_seed_demo_is_idempotent(db):
-    call_command("seed_demo")
+def test_seed_shop_is_idempotent(db):
+    call_command("seed_shop")
     first = Product.objects.count()
-    call_command("seed_demo")
-    assert Product.objects.count() == first == 12
+    call_command("seed_shop")
+    assert Product.objects.count() == first
+    assert first > 0
