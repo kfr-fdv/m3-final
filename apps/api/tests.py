@@ -101,9 +101,7 @@ def test_cart_api(api_client, product):
 
 def test_client_cannot_change_order_status(api_client, product, user):
     api_client.credentials(HTTP_AUTHORIZATION="Bearer " + _token(api_client, user.username))
-    order = Order.objects.create(
-        user=user, shipping_address="a", status=Order.OrderStatus.PENDING
-    )
+    order = Order.objects.create(user=user, shipping_address="a", status=Order.OrderStatus.PENDING)
     OrderItem.objects.create(order=order, product=product, quantity=1, price=product.price)
     url = reverse("api:order-detail", args=[order.id])
 

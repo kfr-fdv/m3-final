@@ -175,7 +175,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     examples=[
         OpenApiExample(
             "Новий користувач",
-            value={"username": "newuser", "email": "user@example.com", "password": "StrongPass123!"},
+            value={
+                "username": "newuser",
+                "email": "user@example.com",
+                "password": "StrongPass123!",
+            },
             request_only=True,
         ),
     ],

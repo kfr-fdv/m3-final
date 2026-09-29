@@ -47,7 +47,6 @@ class Cart:
         self.items[str(product.pk)] = quantity
         self.session.modified = True
 
-
     def remove(self, product: Product) -> None:
         self.items.pop(str(product.pk), None)
         self.session.modified = True
