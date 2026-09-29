@@ -25,6 +25,10 @@
                     <img src="{% static 'img/icons/Shopping_bag.svg' %}" alt="Кошик">
                     {% if cart_count %}<span class="header__cart-count">{{ cart_count }}</span>{% endif %}
                 </a>
+                <form method="post" action="{% url 'accounts:logout' %}" class="header__logout-form">
+                    {% csrf_token %}
+                    <button type="submit" class="button button--logout">Вийти</button>
+                </form>
             </div>
         {% else %}
             <!-- Block for unauthorized user -->
