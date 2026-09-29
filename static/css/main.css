@@ -2010,6 +2010,22 @@ body.user-logged-in .header__user-actions {
     height: 38px;
 }
 
+/* Логаут як іконка — узгоджено з іконками профілю й кошика (лінійний SVG, 38x38). */
+.header__logout-icon {
+    display: block;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.header__logout-icon img {
+    width: 100%;
+    height: 100%;
+}
+
 .cart-icon {
     position: relative;
 }

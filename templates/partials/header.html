@@ -27,7 +27,9 @@
                 </a>
                 <form method="post" action="{% url 'accounts:logout' %}" class="header__logout-form">
                     {% csrf_token %}
-                    <button type="submit" class="button button--logout">Вийти</button>
+                    <button type="submit" class="header__logout-icon" aria-label="Вийти" title="Вийти">
+                        <img src="{% static 'img/icons/logout.svg' %}" alt="Вийти">
+                    </button>
                 </form>
             </div>
         {% else %}
