@@ -2,14 +2,11 @@ from django import forms
 
 from .models import Review
 
-RATING_CHOICES = [(value, str(value)) for value in range(1, 6)]
-
 
 class ReviewForm(forms.ModelForm):
-    """Відгук про товар: оцінка 1–5 та коментар."""
-
     rating = forms.TypedChoiceField(
-        choices=RATING_CHOICES,
+        label="Оцінка",
+        choices=[(value, value) for value in range(5, 0, -1)],
         coerce=int,
         widget=forms.RadioSelect,
     )
@@ -17,3 +14,4 @@ class ReviewForm(forms.ModelForm):
     class Meta:
         model = Review
         fields = ("rating", "comment")
+        labels = {"comment": "Коментар"}

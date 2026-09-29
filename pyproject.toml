@@ -14,6 +14,7 @@ dependencies = [
     "gunicorn>=26.2.0",
     "pillow>=12.3.0",
     "psycopg[binary]>=3.3.5",
+    "requests>=2.34.2",
     "whitenoise>=6.12.0",
 ]
 
@@ -26,12 +27,14 @@ dev = [
     "mypy",
     "django-stubs[compatible-mypy]",
     "djangorestframework-stubs[compatible-mypy]",
+    "types-django-filter>=26.1.0.20260906",
+    "types-requests>=2.33.0.20260906",
 ]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings.local"
 testpaths = ["apps", "tests"]
-python_files = ["test_*.py", "*_test.py", "tests.py"]
+python_files = ["test_*.py", "tests.py"]
 addopts = "-ra --ignore=local_docs"
 
 

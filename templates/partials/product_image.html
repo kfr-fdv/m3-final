@@ -1,0 +1,7 @@
+{% load static %}
+{# Params: product, css_class. Shows the shop logo when the product has no image or the file is missing. #}
+<img src="{% if product.image %}{{ product.image.url }}{% else %}{% static 'img/logo.svg' %}{% endif %}"
+     alt="{{ product.name }}"
+     class="{{ css_class }}{% if not product.image %} product-image--placeholder{% endif %}"
+     onerror="this.onerror=null;this.src='{% static 'img/logo.svg' %}';this.classList.add('product-image--placeholder');"
+     loading="lazy">

@@ -1,40 +1,43 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Sign In{% endblock %}
+{% block title %}Вхід{% endblock %}
 
 {% block content %}
 <main class="auth-page-wrapper">
-    <div class="auth-background">
-        <img src="{% static 'img/background/pattern.jpg' %}" alt="Background pattern">
-    </div>
-    <div class="auth-form-container">
-        <div class="auth-container auth-container--login">
-            <div class="Legend">
-                <h1 class="auth-title">Sign In</h1>
-            </div>
+  <div class="auth-background">
+    <img src="{% static 'img/background/pattern.jpg' %}" alt="">
+  </div>
+  <div class="auth-form-container">
+    <div class="auth-container auth-container--login">
+      <div class="Legend">
+        <h1 class="auth-title">Вхід</h1>
+      </div>
 
-            <form class="auth-form" method="post" action="{% url 'accounts:login' %}">
-                {% csrf_token %}
-                {% include "partials/form_errors.html" with form=form %}
-                <div class="InputField">
-                    <label for="{{ form.username.id_for_label }}">Username</label>
-                    <input type="text" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" value="{{ form.username.value|default:'' }}" class="Input{% if form.username.errors %} is-invalid{% endif %}" required autofocus>
-                </div>
-                <div class="InputField">
-                    <label for="{{ form.password.id_for_label }}">Password</label>
-                    <input type="password" id="{{ form.password.id_for_label }}" name="{{ form.password.html_name }}" class="Input{% if form.password.errors %} is-invalid{% endif %}" required>
-                </div>
-
-                <input type="hidden" name="next" value="{{ next }}">
-
-                <div class="ButtonGroup">
-                    <button type="submit" class="button button--primary">Sign In</button>
-                </div>
-            </form>
-
-            <p class="auth-switch">Don&rsquo;t have an account? <a href="{% url 'accounts:register' %}">Sign up</a></p>
+      <form class="auth-form" id="login-form" method="post" action="{% url 'accounts:login' %}">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        {% include "partials/form_errors.html" with form=form %}
+        <div class="InputField">
+          <label for="email">Email або логін</label>
+          <input type="text" id="email" autocomplete="username" name="{{ form.username.html_name }}" value="{{ form.username.value|default:'' }}" class="Input" placeholder="" required>
         </div>
+        <div class="InputField">
+          <label for="password">Пароль</label>
+          <input type="password" id="password" autocomplete="current-password" name="{{ form.password.html_name }}" class="Input" placeholder="" required>
+        </div>
+
+        <div class="ButtonGroup">
+          <button type="submit" class="button button--primary">Увійти</button>
+        </div>
+
+        <div class="TextLink">
+          <a href="{% url 'accounts:password_reset' %}">Забули пароль?</a>
+        </div>
+      </form>
+
+      <p class="auth-switch">Немає акаунта? <a href="{% url 'accounts:register' %}">Зареєструватися</a></p>
     </div>
+  </div>
 </main>
 {% endblock %}

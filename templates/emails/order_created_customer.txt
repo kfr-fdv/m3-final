@@ -1,18 +1,20 @@
-{% load shop_tags %}Hello {{ order.full_name }},
+{% load shop_tags %}Вітаємо, {{ order.first_name|default:order.full_name }}!
 
-Thank you for your order at {{ shop_name }}!
+Дякуємо за замовлення в {{ shop_name }}.
 
-Order #{{ order.id }} ({{ order.created_at|date:"j M Y" }})
-Payment method: {{ order.get_payment_method_display }}
+Замовлення №{{ order.id }} від {{ order.created_at|date:"j E Y" }}
+Спосіб оплати: {{ order.get_payment_method_display }}
+Статус: {{ order.get_status_display }}
 
-Items:
-{% for item in order.items.all %}- {{ item.product.name }} x{{ item.quantity }} -- {{ item.line_total|money }}
+Товари:
+{% for item in order.items.all %}- {{ item.product.name }} × {{ item.quantity }} — {{ item.total|money }}
 {% endfor %}
-Total: {{ order.total_price|money }}
+Разом: {{ order.total_price|money }}
 
-Shipping address:
+Доставка: {{ order.get_delivery_type_display }}
 {{ order.shipping_address }}
+Отримувач: {{ order.full_name }}, {{ order.phone }}
 
-We will notify you when your order status changes.
+Ми повідомимо, коли статус замовлення зміниться.
 
 {{ shop_name }}

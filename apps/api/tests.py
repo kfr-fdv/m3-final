@@ -2,6 +2,7 @@ import pytest
 from django.urls import reverse
 
 from apps.orders.models import Order, OrderItem
+from apps.reviews.models import Review
 
 pytestmark = pytest.mark.django_db
 
@@ -96,3 +97,34 @@ def test_cart_api(api_client, product):
     )
     response = api_client.get(reverse("api:cart"))
     assert response.data["total"] == product.price * 2
+
+
+def test_client_cannot_change_order_status(api_client, product, user):
+    api_client.credentials(HTTP_AUTHORIZATION="Bearer " + _token(api_client, user.username))
+    order = Order.objects.create(user=user, shipping_address="a", status=Order.OrderStatus.PENDING)
+    OrderItem.objects.create(order=order, product=product, quantity=1, price=product.price)
+    url = reverse("api:order-detail", args=[order.id])
+
+    assert api_client.patch(url, {"status": "paid"}, format="json").status_code == 405
+    assert api_client.put(url, {"status": "paid"}, format="json").status_code == 405
+    assert api_client.delete(url).status_code == 405
+
+    order.refresh_from_db()
+    assert order.status == Order.OrderStatus.PENDING  # статус не змінився
+
+
+def test_user_edits_only_own_review(api_client, product, user, django_user_model):
+    api_client.credentials(HTTP_AUTHORIZATION="Bearer " + _token(api_client, user.username))
+    review = Review.objects.create(product=product, user=user, rating=5, comment="ok")
+    url = reverse("api:review-detail", args=[review.id])
+
+    response = api_client.patch(url, {"rating": 3, "comment": "оновлено"}, format="json")
+    assert response.status_code == 200
+    review.refresh_from_db()
+    assert (review.rating, review.comment) == (3, "оновлено")
+
+    # чужий відгук редагувати не можна (для іншого користувача його «не існує»)
+    django_user_model.objects.create_user("bob", password="secret-pass-123")
+    other = type(api_client)()
+    other.credentials(HTTP_AUTHORIZATION="Bearer " + _token(other, "bob"))
+    assert other.patch(url, {"rating": 1}, format="json").status_code == 404

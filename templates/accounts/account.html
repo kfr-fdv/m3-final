@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load static shop_tags %}
+
+{% block title %}Мій кабінет{% endblock %}
+
+{% block content %}
+<main class="account-page-wrapper">
+  <div class="account-container">
+    <!-- Tabs Navigation -->
+    <div class="account-tabs">
+      <button class="account-tab{% if not form.errors %} active{% endif %}" data-tab-target="#order-history">Історія замовлень</button>
+      <button class="account-tab{% if form.errors %} active{% endif %}" data-tab-target="#account-info">Особисті дані</button>
+    </div>
+
+    <!-- Tabs Content -->
+    <div class="tab-content">
+      <!-- Order History Panel -->
+      <div id="order-history" class="tab-pane{% if not form.errors %} active{% endif %}">
+        <div class="order-history-table">
+          <!-- Table Header -->
+          <div class="order-table-header">
+            <div class="order-table-cell">Замовлення</div>
+            <div class="order-table-cell">Статус</div>
+            <div class="order-table-cell">Сума</div>
+          </div>
+          <!-- Table Body -->
+          <div class="order-table-body">
+            {% for order in orders_page %}
+              <div class="order-table-row">
+                <div class="order-table-cell">
+                  <span class="order-id">№{{ order.pk }}</span>
+                  <span class="order-date">{{ order.created_at|date:"j M Y" }}</span>
+                </div>
+                <div class="order-table-cell">
+                  <span class="order-status">{{ order.get_status_display }}</span>
+                </div>
+                <div class="order-table-cell">
+                  <span class="order-total">{{ order.total_price|money }}</span>
+                </div>
+              </div>
+            {% empty %}
+              <div class="order-table-row">
+                <div class="order-table-cell">
+                  <span class="order-date">Замовлень поки немає.</span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Pagination (simplified) -->
+        <div class="account-pagination">
+          {% if orders_page.has_previous %}
+            <a href="?page={{ orders_page.previous_page_number }}" class="pagination-link-account">← Назад</a>
+          {% else %}
+            <a href="#" class="pagination-link-account disabled">← Назад</a>
+          {% endif %}
+          {% if orders_page.has_next %}
+            <a href="?page={{ orders_page.next_page_number }}" class="pagination-link-account">Далі →</a>
+          {% else %}
+            <a href="#" class="pagination-link-account disabled">Далі →</a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Account Information Panel -->
+      <div id="account-info" class="tab-pane{% if form.errors %} active{% endif %}">
+        <div class="account-form-container">
+          <h2 class="account-form-title">Особиста інформація</h2>
+          <form id="account-info-form" method="post" action="{% url 'accounts:profile' %}" novalidate
+                data-cities-url="{% url 'delivery:cities' %}" data-warehouses-url="{% url 'delivery:warehouses' %}">
+            {% csrf_token %}
+            {% include "partials/form_errors.html" with form=form %}
+            <div class="checkout-form-group">
+              <label for="acc-last-name">Прізвище</label>
+              <input type="text" id="acc-last-name" name="last_name" value="{{ form.last_name.value|default:'' }}" class="Input" autocomplete="family-name" required>
+            </div>
+            <div class="checkout-form-group">
+              <label for="acc-first-name">Ім’я</label>
+              <input type="text" id="acc-first-name" name="first_name" value="{{ form.first_name.value|default:'' }}" class="Input" autocomplete="given-name" required>
+            </div>
+            <div class="checkout-form-group">
+              <label for="acc-middle-name">По батькові <span class="field-optional">(необов’язково)</span></label>
+              <input type="text" id="acc-middle-name" name="middle_name" value="{{ form.middle_name.value|default:'' }}" class="Input" autocomplete="additional-name">
+            </div>
+            <div class="checkout-form-group">
+              <label for="acc-phone">Телефон</label>
+              <input type="tel" id="acc-phone" name="phone" value="{{ form.phone.value|default:'' }}" class="Input" placeholder="+380991112233">
+            </div>
+            <div class="checkout-form-group">
+              <label for="acc-email">Email</label>
+              <input type="email" id="acc-email" name="email" value="{{ form.email.value|default:'' }}" class="Input" placeholder="example@mail.com" required>
+            </div>
+
+            <h2 class="account-form-title">Доставка Новою Поштою</h2>
+            <div class="checkout-form-group">
+              <label for="city">Місто</label>
+              <div class="np-select" id="city-select">
+                <input type="text" id="city" name="city_name" value="{{ form.city_name.value|default:'' }}" class="Input np-select__input" placeholder="Почніть вводити, наприклад Київ" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="city-menu">
+                <span class="np-select__icon" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                <ul class="np-select__menu" id="city-menu" role="listbox" hidden></ul>
+              </div>
+              <input type="hidden" name="city_ref" value="{{ form.city_ref.value|default:'' }}">
+            </div>
+            <div class="checkout-form-group">
+              <label>Спосіб доставки</label>
+              <div class="payment-options">
+                {% for value, label in form.fields.delivery_type.choices %}
+                  <label class="radio-option">
+                    <input type="radio" name="delivery_type" value="{{ value }}"{% if form.delivery_type.value == value %} checked{% endif %}>
+                    <span class="radio-custom"></span>
+                    <span class="radio-label">{{ label }}</span>
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="checkout-form-group">
+              <label for="warehouse">Відділення</label>
+              <div class="np-select" id="warehouse-select">
+                <input type="text" id="warehouse" name="warehouse_name" value="{{ form.warehouse_name.value|default:'' }}" class="Input np-select__input" placeholder="Спершу оберіть місто" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="warehouse-menu">
+                <span class="np-select__icon" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                <ul class="np-select__menu" id="warehouse-menu" role="listbox" hidden></ul>
+              </div>
+              <input type="hidden" name="warehouse_ref" value="{{ form.warehouse_ref.value|default:'' }}">
+            </div>
+            <button type="submit" class="button button--primary button--full-width">Зберегти</button>
+            <button type="submit" form="logout-form" class="button button--secondary button--full-width" id="logout-button">Вийти</button>
+          </form>
+          <form id="logout-form" method="post" action="{% url 'accounts:logout' %}" hidden>{% csrf_token %}</form>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/checkout.js' %}"></script>
+{% endblock %}

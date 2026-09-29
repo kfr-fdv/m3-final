@@ -1,63 +1,89 @@
 from typing import Any
 
+from django.contrib import messages
 from django.contrib.auth import login
+from django.contrib.auth import views as auth_views
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.contrib.auth.views import (
-    LoginView as DjangoLoginView,
-)
-from django.contrib.auth.views import (
-    LogoutView as DjangoLogoutView,
-)
-from django.contrib.auth.views import (
-    PasswordChangeDoneView as DjangoPasswordChangeDoneView,
-)
-from django.contrib.auth.views import (
-    PasswordChangeView as DjangoPasswordChangeView,
-)
-from django.http import HttpResponse
-from django.urls import reverse_lazy
-from django.views.generic import CreateView, UpdateView
+from django.core.paginator import Paginator
+from django.forms import ModelForm
+from django.http import HttpResponse, HttpResponseRedirect
+from django.urls import reverse, reverse_lazy
+from django.views.generic import FormView, UpdateView
+
+from apps.orders.models import Order
 
 from .forms import ProfileForm, RegisterForm
+from .models import User
 
 
-class RegisterView(CreateView):
-    """Реєстрація з автоматичним входом після створення акаунта."""
-
-    template_name = "accounts/register.html"
-    form_class = RegisterForm
-    success_url = reverse_lazy("accounts:profile")
-
-    def form_valid(self, form: Any) -> HttpResponse:
-        response = super().form_valid(form)
-        login(self.request, self.object)
-        return response
-
-
-class LoginView(DjangoLoginView):
+class LoginView(auth_views.LoginView):
     template_name = "accounts/login.html"
     redirect_authenticated_user = True
 
 
-class LogoutView(DjangoLogoutView):
+class LogoutView(auth_views.LogoutView):
     pass
 
 
-class ProfileView(LoginRequiredMixin, UpdateView):
-    """Редагування профілю поточного користувача."""
+class RegisterView(FormView):
+    form_class = RegisterForm
+    template_name = "accounts/register.html"
+    success_url = reverse_lazy("catalog:home")
 
-    template_name = "accounts/profile.html"
+    def form_valid(self, form: RegisterForm) -> HttpResponse:
+        user = form.save()
+        login(self.request, user, backend="apps.accounts.backends.EmailBackend")
+        if not form.cleaned_data["remember_me"]:
+            self.request.session.set_expiry(0)  # log out when the browser closes
+        messages.success(self.request, "Вітаємо! Акаунт створено.")
+        return super().form_valid(form)
+
+
+class AccountView(LoginRequiredMixin, UpdateView):
+    """One page with two tabs, as in the design: order history and account information."""
+
     form_class = ProfileForm
-    success_url = reverse_lazy("accounts:profile")
+    template_name = "accounts/account.html"
+    orders_per_page = 8
 
-    def get_object(self, queryset: Any = None) -> Any:
-        return self.request.user
+    def get_object(self, queryset: Any = None) -> User:
+        return self.request.user  # type: ignore[return-value]
+
+    def get_success_url(self) -> str:
+        return reverse("accounts:profile") + "#account-info"
+
+    def form_valid(self, form: "ModelForm[User]") -> HttpResponse:
+        form.save()
+        messages.success(self.request, "Дані збережено.")
+        return HttpResponseRedirect(self.get_success_url())
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        orders = Order.objects.filter(user=self.object)
+        context["orders_page"] = Paginator(orders, self.orders_per_page).get_page(
+            self.request.GET.get("page")
+        )
+        return context
 
 
-class PasswordChangeView(DjangoPasswordChangeView):
-    template_name = "accounts/password_change.html"
-    success_url = reverse_lazy("accounts:password_change_done")
+class PasswordResetView(auth_views.PasswordResetView):
+    template_name = "accounts/forgot_password.html"
+    email_template_name = "accounts/emails/password_reset_email.txt"
+    subject_template_name = "accounts/emails/password_reset_subject.txt"
+    success_url = reverse_lazy("accounts:login")
+
+    def form_valid(self, form: Any) -> HttpResponse:
+        messages.success(
+            self.request,
+            "Якщо цей email зареєстрований, ми надіслали на нього посилання для відновлення.",
+        )
+        return super().form_valid(form)
 
 
-class PasswordChangeDoneView(DjangoPasswordChangeDoneView):
-    template_name = "accounts/password_change_done.html"
+class PasswordResetConfirmView(auth_views.PasswordResetConfirmView):
+    template_name = "accounts/reset_password.html"
+    success_url = reverse_lazy("accounts:login")
+
+    def form_valid(self, form: Any) -> HttpResponse:
+        messages.success(self.request, "Пароль змінено. Увійдіть з новим паролем.")
+        return super().form_valid(form)

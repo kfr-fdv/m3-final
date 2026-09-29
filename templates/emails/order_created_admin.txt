@@ -1,13 +1,13 @@
-{% load shop_tags %}New order #{{ order.id }} placed on {{ shop_name }}.
+{% load shop_tags %}Нове замовлення №{{ order.id }} в {{ shop_name }}.
 
-Customer: {{ order.full_name }} ({{ order.email }}, {{ order.phone }})
-Payment method: {{ order.get_payment_method_display }}
-Status: {{ order.get_status_display }}
+Покупець: {{ order.full_name }} ({{ order.email }}, {{ order.phone }})
+Спосіб оплати: {{ order.get_payment_method_display }}
+Статус: {{ order.get_status_display }}
 
-Items:
-{% for item in order.items.all %}- {{ item.product.name }} x{{ item.quantity }} -- {{ item.line_total|money }}
+Товари:
+{% for item in order.items.all %}- {{ item.product.name }} × {{ item.quantity }} — {{ item.total|money }}
 {% endfor %}
-Total: {{ order.total_price|money }}
+Разом: {{ order.total_price|money }}
 
-Shipping address:
+Доставка: {{ order.get_delivery_type_display }}
 {{ order.shipping_address }}

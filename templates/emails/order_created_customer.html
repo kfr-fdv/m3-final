@@ -1,23 +1,23 @@
 {% load shop_tags %}<!DOCTYPE html>
-<html lang="en">
+<html lang="uk">
 <head>
     <meta charset="UTF-8">
-    <title>Order confirmation</title>
+    <title>Підтвердження замовлення</title>
 </head>
 <body style="font-family: Arial, sans-serif; color: #111d13; background-color: #f5f5f5; padding: 24px;">
     <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #d9d9d9; border-radius: 8px; padding: 32px;">
-        <p>Hello {{ order.full_name }},</p>
-        <p>Thank you for your order at <strong>{{ shop_name }}</strong>!</p>
+        <p>Вітаємо, {{ order.first_name|default:order.full_name }}!</p>
+        <p>Дякуємо за замовлення в <strong>{{ shop_name }}</strong>.</p>
         <p>
-            Order #{{ order.id }} ({{ order.created_at|date:"j M Y" }})<br>
-            Payment method: {{ order.get_payment_method_display }}
+            Замовлення №{{ order.id }} від {{ order.created_at|date:"j E Y" }}<br>
+            Спосіб оплати: {{ order.get_payment_method_display }}
         </p>
         <table cellpadding="8" cellspacing="0" border="1" style="border-collapse: collapse; width: 100%; border-color: #d9d9d9;">
             <thead>
                 <tr style="background-color: #cff7d3;">
-                    <th align="left">Product</th>
-                    <th align="left">Qty</th>
-                    <th align="left">Line total</th>
+                    <th align="left">Товар</th>
+                    <th align="left">Кількість</th>
+                    <th align="left">Сума</th>
                 </tr>
             </thead>
             <tbody>
@@ -25,17 +25,18 @@
                 <tr>
                     <td>{{ item.product.name }}</td>
                     <td>{{ item.quantity }}</td>
-                    <td>{{ item.line_total|money }}</td>
+                    <td>{{ item.total|money }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        <p style="font-size: 18px;"><strong>Total: {{ order.total_price|money }}</strong></p>
+        <p style="font-size: 18px;"><strong>Разом: {{ order.total_price|money }}</strong></p>
         <p>
-            Shipping address:<br>
-            {{ order.shipping_address|linebreaksbr }}
+            {{ order.get_delivery_type_display }}:<br>
+            {{ order.shipping_address|linebreaksbr }}<br>
+            Отримувач: {{ order.full_name }}, {{ order.phone }}
         </p>
-        <p>We will notify you when your order status changes.</p>
+        <p>Ми повідомимо, коли статус замовлення зміниться.</p>
         <p>{{ shop_name }}</p>
     </div>
 </body>

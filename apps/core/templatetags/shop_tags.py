@@ -29,3 +29,12 @@ def stars(rating: float) -> SafeString:
         '<span class="star{}">{}</span>',
         ((" star--filled", "★") if number <= filled else ("", "☆") for number in range(1, 6)),
     )
+
+
+RATING_LABELS = {1: "Погано", 2: "Так собі", 3: "Добре", 4: "Дуже добре", 5: "Чудово"}
+
+
+# {{ review.rating|rating_label }} -> "Чудово"
+@register.filter
+def rating_label(rating: int | None) -> str:
+    return RATING_LABELS.get(rating or 0, "")

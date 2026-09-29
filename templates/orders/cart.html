@@ -1,63 +1,51 @@
 {% extends "base.html" %}
 {% load shop_tags %}
 
-{% block title %}Shopping Cart{% endblock %}
+{% block title %}Кошик{% endblock %}
 
 {% block content %}
 <main class="cart-page-wrapper">
     <div class="cart-container">
-        <h1 class="cart-title">Shopping Cart</h1>
+        <h1 class="cart-title">Кошик</h1>
 
         {% if is_empty %}
-            <div class="empty-state">
-                <p>Your cart is empty.</p>
-                <a href="{% url 'catalog:product_list' %}" class="button button--primary">Browse products</a>
-            </div>
+            <p>Кошик порожній. <a href="{% url 'catalog:home' %}">Перейти до каталогу</a></p>
         {% else %}
             <div class="cart-items-list">
                 {% for line in lines %}
                     <div class="cart-item">
-                        {% if line.product.image %}
-                            <img src="{{ line.product.image.url }}" alt="{{ line.product.name }}" class="cart-item__image">
-                        {% else %}
-                            <div class="cart-item__image product-card__image--placeholder"></div>
-                        {% endif %}
+                        {% include "partials/product_image.html" with product=line.product css_class="cart-item__image" %}
                         <div class="cart-item__body">
                             <div class="cart-item__details">
-                                <h2 class="cart-item__name"><a href="{{ line.product.get_absolute_url }}">{{ line.product.name }}</a></h2>
+                                <h2 class="cart-item__name">{{ line.product.name }}</h2>
                                 <div class="cart-item__price-info">
                                     <p class="cart-item__price">{{ line.line_total|money }}</p>
-                                    <span class="cart-item__price-tag">{{ line.product.price|money }} each</span>
+                                    <span class="cart-item__price-tag">{{ line.product.price|money }} за шт.</span>
                                 </div>
                             </div>
                             <div class="cart-item__actions">
-                                <form method="post" action="{% url 'orders:cart_update' line.product.id %}" class="cart-item__quantity-form">
+                                <form class="cart-item__quantity-selector" method="post" action="{% url 'orders:cart_update' line.product.id %}">
                                     {% csrf_token %}
-                                    <div class="cart-item__quantity-selector" data-quantity-control>
-                                        <button type="button" class="quantity-btn-cart" data-action="decrease" aria-label="Decrease quantity"><i class="fa-solid fa-minus"></i></button>
-                                        <input type="number" name="quantity" min="1" value="{{ line.quantity }}" class="quantity-input">
-                                        <button type="button" class="quantity-btn-cart" data-action="increase" aria-label="Increase quantity"><i class="fa-solid fa-plus"></i></button>
-                                    </div>
-                                    <button type="submit" class="button button--secondary">Update</button>
+                                    <button class="quantity-btn-cart" name="quantity" value="{{ line.quantity|add:'-1' }}" aria-label="Менше"><i class="fa-solid fa-minus"></i></button>
+                                    <span class="quantity-value-cart">{{ line.quantity }}</span>
+                                    <button class="quantity-btn-cart" name="quantity" value="{{ line.quantity|add:'1' }}" aria-label="Більше"><i class="fa-solid fa-plus"></i></button>
                                 </form>
-                                <form method="post" action="{% url 'orders:cart_remove' line.product.id %}">
-                                    {% csrf_token %}
-                                    <button type="submit" class="button--remove">
-                                        Remove <i class="fa-solid fa-xmark"></i>
-                                    </button>
-                                </form>
+                                <button class="button--remove" form="remove-{{ line.product.id }}">
+                                    Видалити <i class="fa-solid fa-xmark"></i>
+                                </button>
                             </div>
                         </div>
+                        <form id="remove-{{ line.product.id }}" method="post" action="{% url 'orders:cart_remove' line.product.id %}" hidden>{% csrf_token %}</form>
                     </div>
                 {% endfor %}
             </div>
 
             <div class="cart-summary">
                 <div class="cart-summary__total">
-                    <p>Total</p>
+                    <p>Разом</p>
                     <p>{{ total|money }}</p>
                 </div>
-                <a href="{% url 'orders:checkout' %}" class="button button--primary button--checkout">Proceed to Checkout</a>
+                <a href="{% url 'orders:checkout' %}" class="button button--primary button--checkout">Оформити замовлення</a>
             </div>
         {% endif %}
     </div>

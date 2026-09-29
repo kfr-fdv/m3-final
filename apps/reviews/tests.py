@@ -1,45 +1,118 @@
 import pytest
+from django.test import Client
 from django.urls import reverse
 
+from apps.accounts.models import User
+from apps.catalog.models import Product
 from apps.orders.models import Order, OrderItem
 from apps.reviews.models import Review
-from apps.reviews.services import user_can_review
-
-pytestmark = pytest.mark.django_db
+from apps.reviews.services import can_review
 
 
-def _buy(user, product, status=Order.OrderStatus.PAID):
-    order = Order.objects.create(user=user, shipping_address="a", status=status)
+def buy(user: User, product: Product, status: str = "delivered") -> None:
+    order = Order.objects.create(user=user, shipping_address="Kyiv", status=status)
     OrderItem.objects.create(order=order, product=product, quantity=1, price=product.price)
-    return order
 
 
-def test_cannot_review_without_purchase(user, product):
-    assert user_can_review(user, product) is False
+def review_url(product: Product) -> str:
+    return reverse("reviews:create", args=[product.slug])
 
 
-def test_can_review_after_purchase(user, product):
-    _buy(user, product)
-    assert user_can_review(user, product) is True
+def test_guest_cannot_review(product: Product) -> None:
+    from django.contrib.auth.models import AnonymousUser
+
+    assert not can_review(AnonymousUser(), product)
 
 
-def test_cannot_review_twice(user, product):
-    _buy(user, product)
-    Review.objects.create(product=product, user=user, rating=5, comment="great")
-    assert user_can_review(user, product) is False
+def test_only_buyers_can_review(user: User, product: Product) -> None:
+    assert not can_review(user, product)
+    buy(user, product)
+    assert can_review(user, product)
 
 
-def test_review_create_view_blocks_without_purchase(client, user, product):
+@pytest.mark.parametrize("status", ["pending", "cancelled"])
+def test_unpaid_order_does_not_count(user: User, product: Product, status: str) -> None:
+    buy(user, product, status=status)
+
+    assert not can_review(user, product)
+
+
+def test_buyer_leaves_review(client: Client, user: User, product: Product) -> None:
+    buy(user, product)
     client.force_login(user)
-    response = client.post(
-        reverse("reviews:create", args=[product.slug]), {"rating": 5, "comment": "x"}
-    )
-    assert response.status_code == 302
-    assert Review.objects.count() == 0
+
+    client.post(review_url(product), {"rating": 4, "comment": "Nice aroma"})
+
+    review = Review.objects.get()
+    assert (review.user, review.rating, review.comment) == (user, 4, "Nice aroma")
+    assert not can_review(user, product)
 
 
-def test_review_create_view_after_purchase(client, user, product):
-    _buy(user, product)
+def test_second_review_is_rejected(client: Client, user: User, product: Product) -> None:
+    buy(user, product)
     client.force_login(user)
-    client.post(reverse("reviews:create", args=[product.slug]), {"rating": 4, "comment": "nice"})
-    assert Review.objects.filter(product=product, user=user, rating=4).exists()
+
+    client.post(review_url(product), {"rating": 5})
+    client.post(review_url(product), {"rating": 1})
+
+    assert Review.objects.get().rating == 5
+
+
+def test_not_a_buyer_cannot_post_review(client: Client, user: User, product: Product) -> None:
+    client.force_login(user)
+
+    client.post(review_url(product), {"rating": 5})
+
+    assert not Review.objects.exists()
+
+
+@pytest.mark.parametrize("rating", [0, 6, "x"])
+def test_rating_must_be_from_1_to_5(client: Client, user: User, product: Product, rating) -> None:
+    buy(user, product)
+    client.force_login(user)
+
+    client.post(review_url(product), {"rating": rating})
+
+    assert not Review.objects.exists()
+
+
+def test_product_page_shows_form_only_to_buyer(
+    client: Client, user: User, product: Product
+) -> None:
+    client.force_login(user)
+    assert not client.get(product.get_absolute_url()).context["can_review"]
+
+    buy(user, product)
+    assert client.get(product.get_absolute_url()).context["can_review"]
+
+
+def test_rating_on_product_page(client: Client, user: User, product: Product) -> None:
+    Review.objects.create(user=user, product=product, rating=4)
+    other = User.objects.create_user(username="bob", password="secret-pass-123")
+    Review.objects.create(user=other, product=product, rating=5)
+
+    shown = client.get(product.get_absolute_url()).context["product"]
+
+    assert (shown.rating_avg, shown.rating_count) == (4.5, 2)
+
+
+def test_buyer_edits_own_review(client: Client, user: User, product: Product) -> None:
+    review = Review.objects.create(user=user, product=product, rating=5, comment="mine")
+    client.force_login(user)
+
+    client.post(reverse("reviews:edit", args=[review.pk]), {"rating": 2, "comment": "Оновлено"})
+
+    review.refresh_from_db()
+    assert (review.rating, review.comment) == (2, "Оновлено")
+
+
+def test_cannot_edit_someone_elses_review(client: Client, user: User, product: Product) -> None:
+    review = Review.objects.create(user=user, product=product, rating=5, comment="mine")
+    intruder = User.objects.create_user(username="mallory", password="secret-pass-123")
+    client.force_login(intruder)
+
+    response = client.post(reverse("reviews:edit", args=[review.pk]), {"rating": 1})
+
+    assert response.status_code == 404
+    review.refresh_from_db()
+    assert review.rating == 5  # чужий відгук не змінено

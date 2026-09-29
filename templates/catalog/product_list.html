@@ -1,67 +1,58 @@
 {% extends "base.html" %}
+{% load static %}
 
-{% block title %}Products{% endblock %}
+{% block title %}Каталог{% endblock %}
 
 {% block content %}
 <main>
+    <section class="hero-banner">
+        <img src="{% static 'img/background/hopfen-fields.jpg' %}" alt="Шишки хмелю на темному тлі" class="hero-banner__image">
+        <div class="hero-banner__overlay"></div>
+    </section>
+
     <div class="container main-content-grid">
+        <form method="get" action="{% url 'catalog:product_list' %}" id="catalog-filters" hidden>
+            {% if request.GET.ordering %}<input type="hidden" name="ordering" value="{{ request.GET.ordering }}">{% endif %}
+        </form>
+
         <aside class="sidebar filter-menu">
-            <form method="get" action="{% url 'catalog:product_list' %}" class="filter-form">
-                <div class="sidebar__section">
-                    <h3 class="section-title">Search</h3>
-                    <div class="search-input-wrapper">
-                        <input type="text" name="search" value="{{ filter.form.search.value|default:'' }}" placeholder="Search" class="search-input">
-                        <button type="submit" class="search-button" aria-label="Search">
-                            <i class="fa-solid fa-magnifying-glass"></i>
-                        </button>
-                    </div>
+            <div class="sidebar__section">
+                <h3 class="section-title">Ключові слова</h3>
+                <div class="keywords-list">
+                    {% for keyword in active_keywords %}
+                        <span class="keyword-tag">{{ keyword.label }} <a href="{{ keyword.remove_url }}" aria-label="Прибрати «{{ keyword.label }}»"><i class="fa-solid fa-xmark remove-keyword-icon"></i></a></span>
+                    {% endfor %}
                 </div>
+            </div>
 
-                <div class="sidebar__section">
-                    <h3 class="section-title">Category</h3>
-                    <select name="category" class="filter-form__select">
-                        <option value="">All categories</option>
-                        {% for category in categories %}
-                            <option value="{{ category.slug }}" {% if filter.form.category.value == category.slug %}selected{% endif %}>{{ category.name }}</option>
-                            {% for child in category.children.all %}
-                                <option value="{{ child.slug }}" {% if filter.form.category.value == child.slug %}selected{% endif %}>&nbsp;&nbsp;&nbsp;&nbsp;{{ child.name }}</option>
-                            {% endfor %}
-                        {% endfor %}
-                    </select>
+            <div class="sidebar__section">
+                <h3 class="section-title">Тип товару</h3>
+                <div class="checkbox-group">
+                    {% for category in categories %}
+                        <label class="checkbox-container">{{ category.name }}
+                            <input type="checkbox" name="category" value="{{ category.slug }}" form="catalog-filters" data-autosubmit {% if category.slug in selected_categories %}checked{% endif %}>
+                            <span class="checkmark"></span>
+                        </label>
+                    {% endfor %}
                 </div>
-
-                <div class="sidebar__section">
-                    <h3 class="section-title">Price</h3>
-                    <div class="filter-form__price-range">
-                        <input type="number" name="min_price" min="0" step="0.01" value="{{ filter.form.min_price.value|default:'' }}" placeholder="Min" class="Input">
-                        <input type="number" name="max_price" min="0" step="0.01" value="{{ filter.form.max_price.value|default:'' }}" placeholder="Max" class="Input">
-                    </div>
-                </div>
-
-                <div class="sidebar__section">
-                    <label class="checkbox-container">In stock only
-                        <input type="checkbox" name="in_stock" value="true" {% if request.GET.in_stock %}checked{% endif %}>
-                        <span class="checkmark"></span>
-                    </label>
-                </div>
-
-                {% if request.GET.ordering %}
-                    <input type="hidden" name="ordering" value="{{ request.GET.ordering }}">
-                {% endif %}
-
-                <button type="submit" class="button button--primary button--full-width">Apply filters</button>
-            </form>
+            </div>
         </aside>
 
         <section class="products-area product-grid-section">
             <div class="search-sort-bar">
+                <div class="search-input-wrapper">
+                    <input type="text" name="search" form="catalog-filters" value="{{ filter.form.search.value|default:'' }}" placeholder="Пошук" class="search-input">
+                    <button type="submit" form="catalog-filters" class="search-button" aria-label="Шукати">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </button>
+                </div>
                 <div class="sort-options">
-                    <a href="{% querystring ordering='-created_at' %}" class="sort-button {% if not request.GET.ordering or request.GET.ordering == '-created_at' %}active-sort{% endif %}">
-                        <span>New</span>
+                    <a href="{% querystring ordering='-created_at' page=None %}" class="sort-button {% if not request.GET.ordering or request.GET.ordering == '-created_at' %}active-sort{% endif %}">
+                        <span>Новинки</span>
                     </a>
-                    <a href="{% querystring ordering='price' %}" class="sort-button {% if request.GET.ordering == 'price' %}active-sort{% endif %}">Price ascending</a>
-                    <a href="{% querystring ordering='-price' %}" class="sort-button {% if request.GET.ordering == '-price' %}active-sort{% endif %}">Price descending</a>
-                    <a href="{% querystring ordering='-rating' %}" class="sort-button {% if request.GET.ordering == '-rating' %}active-sort{% endif %}">Rating</a>
+                    <a href="{% querystring ordering='price' page=None %}" class="sort-button {% if request.GET.ordering == 'price' %}active-sort{% endif %}">Спершу дешевші</a>
+                    <a href="{% querystring ordering='-price' page=None %}" class="sort-button {% if request.GET.ordering == '-price' %}active-sort{% endif %}">Спершу дорожчі</a>
+                    <a href="{% querystring ordering='-rating' page=None %}" class="sort-button {% if request.GET.ordering == '-rating' %}active-sort{% endif %}">За рейтингом</a>
                 </div>
             </div>
 
@@ -69,7 +60,7 @@
                 {% for product in products %}
                     {% include "partials/product_card.html" with product=product %}
                 {% empty %}
-                    <p class="empty-state">No products match your filters.</p>
+                    <p class="empty-state">За вашими фільтрами товарів не знайдено.</p>
                 {% endfor %}
             </div>
 

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load shop_tags %}
+
+{% block title %}Аналітика{% endblock %}
+
+{% block content %}
+<main class="admin-page-wrapper">
+    <div class="admin-container">
+        {% include "staff/_tabs.html" with active="dashboard" %}
+
+        <div class="admin-content">
+            <h1 class="admin-content__title">Аналітика</h1>
+
+            <!-- Filter Tags -->
+            <div class="category-tags">
+                {% for key, label in periods %}
+                    <a href="?period={{ key }}" class="category-tag{% if key == period %} active{% endif %}">{{ label }}</a>
+                {% endfor %}
+            </div>
+
+            <!-- Stats Cards Grid -->
+            <div class="stats-grid">
+                {% for card in cards %}
+                    <div class="stat-card">
+                        <div class="stat-card__header">
+                            <span class="stat-card__title">{{ card.title }}</span>
+                            {% if card.key == "sales" %}
+                                <div class="stat-card__icon-wrapper" style="background-color: #e0f8e3;"><i class="fa-solid fa-arrow-trend-up" style="color: #34c759;"></i></div>
+                            {% elif card.key == "users" %}
+                                <div class="stat-card__icon-wrapper" style="background-color: #e6e5ff;"><i class="fa-solid fa-users" style="color: #5856d6;"></i></div>
+                            {% elif card.key == "orders" %}
+                                <div class="stat-card__icon-wrapper" style="background-color: #fff0d4;"><i class="fa-solid fa-box-archive" style="color: #ff9f0a;"></i></div>
+                            {% else %}
+                                <div class="stat-card__icon-wrapper" style="background-color: #ffe6e0;"><i class="fa-solid fa-clock-rotate-left" style="color: #ff3b30;"></i></div>
+                            {% endif %}
+                        </div>
+                        <p class="stat-card__value">{% if card.key == "sales" %}{{ card.value|money }}{% else %}{{ card.value }}{% endif %}</p>
+                        {% if card.delta %}
+                            <div class="stat-card__delta {% if card.delta.up %}delta--up{% else %}delta--down{% endif %}">
+                                <i class="fa-solid {% if card.delta.up %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                                <span>{% if card.delta.up %}+{% else %}−{% endif %}{{ card.delta.percent|floatformat:1 }}% порівняно з {{ card.delta.compared_to }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block footer %}{% endblock %}

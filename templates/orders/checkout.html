@@ -1,69 +1,178 @@
 {% extends "base.html" %}
-{% load shop_tags %}
+{% load static shop_tags %}
 
-{% block title %}Checkout{% endblock %}
+{% block title %}Оформлення замовлення{% endblock %}
 
 {% block content %}
 <main class="checkout-page-wrapper">
-    <div class="checkout-container">
-        <h1 class="checkout-title">Order Details</h1>
+    <div class="checkout-layout">
+        <nav class="checkout-crumbs" aria-label="Навігація">
+            <a href="{% url 'orders:cart' %}" class="checkout-crumbs__back" aria-label="Назад до кошика"><i class="fa-solid fa-chevron-left"></i></a>
+            <a href="{% url 'catalog:home' %}">Головна</a>
+            <span>/</span>
+            <a href="{% url 'orders:cart' %}">Кошик</a>
+            <span>/</span>
+            <span class="checkout-crumbs__current">Оформлення</span>
+        </nav>
 
-        <form method="post" action="{% url 'orders:checkout' %}">
-            {% csrf_token %}
-            {% include "partials/form_errors.html" with form=form %}
+        <div class="checkout-columns">
+            <!-- Left: the form -->
+            <form id="checkout-form" class="checkout-main" method="post" action="{% url 'orders:checkout' %}" novalidate
+                  data-cities-url="{% url 'delivery:cities' %}"
+                  data-warehouses-url="{% url 'delivery:warehouses' %}">
+                {% csrf_token %}
 
-            <section class="checkout-section">
-                <h2 class="checkout-section__title">Shipping information</h2>
-                <div class="checkout-form-group">
-                    <label for="{{ form.full_name.id_for_label }}">Full Name</label>
-                    <input type="text" id="{{ form.full_name.id_for_label }}" name="{{ form.full_name.html_name }}" value="{{ form.full_name.value|default:'' }}" class="Input{% if form.full_name.errors %} is-invalid{% endif %}" required>
+                <div class="checkout-steps">
+                    <a href="#step-customer" class="checkout-step" data-step="customer">
+                        <i class="fa-solid fa-circle-check"></i> Отримувач і доставка
+                    </a>
+                    <a href="#step-payment" class="checkout-step" data-step="payment">
+                        <i class="fa-solid fa-circle-check"></i> Оплата
+                    </a>
                 </div>
-                <div class="checkout-form-group">
-                    <label for="{{ form.email.id_for_label }}">Email</label>
-                    <input type="email" id="{{ form.email.id_for_label }}" name="{{ form.email.html_name }}" value="{{ form.email.value|default:'' }}" class="Input{% if form.email.errors %} is-invalid{% endif %}" required>
-                </div>
-                <div class="checkout-form-group">
-                    <label for="{{ form.phone.id_for_label }}">Phone number</label>
-                    <input type="tel" id="{{ form.phone.id_for_label }}" name="{{ form.phone.html_name }}" value="{{ form.phone.value|default:'' }}" class="Input{% if form.phone.errors %} is-invalid{% endif %}" required>
-                </div>
-                <div class="checkout-form-group">
-                    <label for="{{ form.shipping_address.id_for_label }}">Shipping address</label>
-                    <textarea id="{{ form.shipping_address.id_for_label }}" name="{{ form.shipping_address.html_name }}" class="Textarea{% if form.shipping_address.errors %} is-invalid{% endif %}" rows="3" required>{{ form.shipping_address.value|default:'' }}</textarea>
-                </div>
-            </section>
 
-            <section class="checkout-section">
-                <h2 class="checkout-section__title">Payment Method</h2>
-                <div class="payment-options">
-                    {% for radio in form.payment_method %}
-                        <label class="radio-option">
-                            {{ radio.tag }}
-                            <span class="radio-custom"></span>
-                            <span class="radio-label">{{ radio.choice_label }}</span>
-                        </label>
-                    {% endfor %}
-                </div>
-            </section>
+                {% include "partials/form_errors.html" with form=form %}
 
-            <section class="checkout-summary">
-                <h2 class="checkout-section__title">Order Summary</h2>
-                <div class="order-summary-lines">
-                    {% for line in lines %}
-                        <div class="order-summary-line">
-                            <span>{{ line.product.name }} &times; {{ line.quantity }}</span>
-                            <span>{{ line.line_total|money }}</span>
+                <!-- Step 1: recipient and delivery -->
+                <section class="checkout-block" id="step-customer">
+                    <h1 class="checkout-block__title">Оформлення замовлення</h1>
+                    <p class="checkout-block__subtitle">Вкажіть отримувача так, як у паспорті: Нова Пошта видає посилку за документом.</p>
+
+                    <div class="field-grid">
+                        <div class="field-box{% if form.last_name.errors %} is-invalid{% endif %}">
+                            <i class="fa-regular fa-user field-box__icon"></i>
+                            <div class="field-box__body">
+                                <label for="last-name" class="field-box__label">Прізвище</label>
+                                <input type="text" id="last-name" name="last_name" value="{{ form.last_name.value|default:'' }}" class="field-box__input" autocomplete="family-name" required data-step-field="customer">
+                            </div>
                         </div>
-                    {% endfor %}
-                </div>
-                <div class="summary-details">
-                    <div class="summary-total">
-                        <p>Total</p>
-                        <p>{{ total|money }}</p>
+                        <div class="field-box{% if form.first_name.errors %} is-invalid{% endif %}">
+                            <i class="fa-regular fa-user field-box__icon"></i>
+                            <div class="field-box__body">
+                                <label for="first-name" class="field-box__label">Ім’я</label>
+                                <input type="text" id="first-name" name="first_name" value="{{ form.first_name.value|default:'' }}" class="field-box__input" autocomplete="given-name" required data-step-field="customer">
+                            </div>
+                        </div>
+                        <div class="field-box">
+                            <i class="fa-regular fa-user field-box__icon"></i>
+                            <div class="field-box__body">
+                                <label for="middle-name" class="field-box__label">По батькові <span class="field-optional">(необов’язково)</span></label>
+                                <input type="text" id="middle-name" name="middle_name" value="{{ form.middle_name.value|default:'' }}" class="field-box__input" autocomplete="additional-name">
+                            </div>
+                        </div>
+                        <div class="field-box{% if form.phone.errors %} is-invalid{% endif %}">
+                            <i class="fa-solid fa-phone field-box__icon"></i>
+                            <div class="field-box__body">
+                                <label for="phone" class="field-box__label">Телефон</label>
+                                <input type="tel" id="phone" name="phone" value="{{ form.phone.value|default:'' }}" class="field-box__input" placeholder="+380991112233" autocomplete="tel" required data-step-field="customer">
+                            </div>
+                        </div>
                     </div>
-                    <button type="submit" class="button button--primary button--pay">Place order</button>
+
+                    <h2 class="checkout-block__heading">Доставка Новою Поштою</h2>
+
+                    <div class="field-box field-box--select{% if form.city_ref.errors or form.city_name.errors %} is-invalid{% endif %}">
+                        <i class="fa-solid fa-location-dot field-box__icon"></i>
+                        <div class="field-box__body np-select" id="city-select">
+                            <label for="city" class="field-box__label">Місто</label>
+                            <input type="text" id="city" name="city_name" value="{{ form.city_name.value|default:'' }}" class="field-box__input np-select__input" placeholder="Почніть вводити, наприклад Київ" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="city-menu" required>
+                            <span class="np-select__icon" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                            <ul class="np-select__menu" id="city-menu" role="listbox" hidden></ul>
+                        </div>
+                        <input type="hidden" name="city_ref" value="{{ form.city_ref.value|default:'' }}" data-step-field="customer">
+                    </div>
+
+                    <div class="option-grid">
+                        {% for value, label in form.fields.delivery_type.choices %}
+                            <label class="option-card">
+                                <span class="option-card__icon">
+                                    <i class="fa-solid {% if value == 'postomat' %}fa-box{% else %}fa-building{% endif %}"></i>
+                                </span>
+                                <span class="option-card__text">
+                                    <span class="option-card__title">{{ label }}</span>
+                                    <span class="option-card__hint">{% if value == 'postomat' %}Цілодобово, без черги{% else %}Видача працівником відділення{% endif %}</span>
+                                </span>
+                                <input type="radio" name="delivery_type" value="{{ value }}" class="option-card__radio"{% if form.delivery_type.value == value %} checked{% endif %}>
+                            </label>
+                        {% endfor %}
+                    </div>
+
+                    <div class="field-box field-box--select{% if form.warehouse_ref.errors or form.warehouse_name.errors %} is-invalid{% endif %}">
+                        <i class="fa-solid fa-building field-box__icon" id="warehouse-icon"></i>
+                        <div class="field-box__body np-select" id="warehouse-select">
+                            <label for="warehouse" class="field-box__label">Відділення</label>
+                            <input type="text" id="warehouse" name="warehouse_name" value="{{ form.warehouse_name.value|default:'' }}" class="field-box__input np-select__input" placeholder="Спершу оберіть місто" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="warehouse-menu" required>
+                            <span class="np-select__icon" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                            <ul class="np-select__menu" id="warehouse-menu" role="listbox" hidden></ul>
+                        </div>
+                        <input type="hidden" name="warehouse_ref" value="{{ form.warehouse_ref.value|default:'' }}" data-step-field="customer">
+                    </div>
+                </section>
+
+                <!-- Step 2: payment -->
+                <section class="checkout-block" id="step-payment">
+                    <h2 class="checkout-block__heading">Спосіб оплати</h2>
+                    <p class="checkout-block__subtitle">Оплата на сайті імітується: гроші не списуються.</p>
+
+                    <div class="option-list">
+                        {% for value, label in form.fields.payment_method.choices %}
+                            <label class="option-card">
+                                <span class="option-card__icon">
+                                    <i class="{% if value == 'card' %}fa-regular fa-credit-card{% elif value == 'wallet' %}fa-solid fa-mobile-screen{% else %}fa-solid fa-money-bill-wave{% endif %}"></i>
+                                </span>
+                                <span class="option-card__text">
+                                    <span class="option-card__title">{{ label }}</span>
+                                    <span class="option-card__hint">{% if value == 'card' %}Visa, Mastercard{% elif value == 'wallet' %}Швидка оплата з телефона{% else %}Готівкою або карткою у відділенні{% endif %}</span>
+                                </span>
+                                <input type="radio" name="payment_method" value="{{ value }}" class="option-card__radio" data-step-field="payment"{% if form.payment_method.value == value %} checked{% endif %}>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </section>
+            </form>
+
+            <!-- Right: the order -->
+            <aside class="checkout-aside">
+                <div class="order-card">
+                    <div class="order-card__header">
+                        <h2 class="order-card__title">Ваше замовлення</h2>
+                        <a href="{% url 'orders:cart' %}" class="order-card__edit"><i class="fa-solid fa-pen"></i> Змінити</a>
+                    </div>
+                    <p class="order-card__subtitle">Товари й сума до оплати</p>
+
+                    <ul class="order-card__items">
+                        {% for line in lines %}
+                            <li class="order-line">
+                                {% include "partials/product_image.html" with product=line.product css_class="order-line__image" %}
+                                <div class="order-line__info">
+                                    <p class="order-line__name">{{ line.product.name }}</p>
+                                    <p class="order-line__qty">Кількість: {{ line.quantity }} × {{ line.product.price|money }}</p>
+                                </div>
+                                <p class="order-line__price">{{ line.line_total|money }}</p>
+                            </li>
+                        {% endfor %}
+                    </ul>
+
+                    <div class="order-card__subtotal">
+                        <span>Сума</span>
+                        <strong>{{ total|money }}</strong>
+                    </div>
+
+                    <dl class="order-card__rows">
+                        <div><dt>Товари</dt><dd>{{ items_count }} шт.</dd></div>
+                        <div><dt>Доставка</dt><dd>За тарифами Нової Пошти</dd></div>
+                    </dl>
+
+                    <button type="submit" form="checkout-form" class="button button--primary order-card__pay" data-total="{{ total|money }}">
+                        Оплатити {{ total|money }}
+                    </button>
                 </div>
-            </section>
-        </form>
+            </aside>
+        </div>
     </div>
 </main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/checkout.js' %}"></script>
 {% endblock %}
