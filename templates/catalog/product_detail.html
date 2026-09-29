@@ -107,7 +107,24 @@
                     </div>
                     <button type="submit" class="button button--primary">Надіслати відгук</button>
                 </form>
-{% endif %}
+            {% elif user_review %}
+                <form method="post" action="{% url 'reviews:edit' user_review.pk %}" class="review-form">
+                    {% csrf_token %}
+                    <div class="review-form__field">
+                        <span class="review-form__label">Редагувати ваш відгук</span>
+                        <div class="review-form__rating">
+                            {% for radio in review_edit_form.rating %}
+                                <label class="review-form__rating-option">{{ radio.tag }} {{ radio.choice_label }}</label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="review-form__field">
+                        <label for="{{ review_edit_form.comment.id_for_label }}">Коментар</label>
+                        <textarea id="{{ review_edit_form.comment.id_for_label }}" name="{{ review_edit_form.comment.html_name }}" class="Textarea" rows="3">{{ review_edit_form.comment.value|default:'' }}</textarea>
+                    </div>
+                    <button type="submit" class="button button--primary">Оновити відгук</button>
+                </form>
+            {% endif %}
         </section>
     </div>
 </main>

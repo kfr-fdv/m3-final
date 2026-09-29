@@ -67,4 +67,9 @@ class ProductDetailView(DetailView):
         context["reviews"] = product.reviews.select_related("user")
         context["can_review"] = can_review(self.request.user, product)
         context["review_form"] = ReviewForm()
+        user_review = None
+        if self.request.user.is_authenticated:
+            user_review = product.reviews.filter(user=self.request.user).first()
+        context["user_review"] = user_review
+        context["review_edit_form"] = ReviewForm(instance=user_review) if user_review else None
         return context

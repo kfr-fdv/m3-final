@@ -10,6 +10,7 @@ from .views import (
     ProductViewSet,
     RefreshTokenView,
     RegisterView,
+    ReviewUpdateView,
 )
 
 app_name = "api"
@@ -28,6 +29,7 @@ urlpatterns = [
         ProductReviewsView.as_view(),
         name="product-reviews",
     ),
+    path("reviews/<int:pk>/", ReviewUpdateView.as_view(), name="review-detail"),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),
     path("docs/", SpectacularSwaggerView.as_view(url_name="api:schema"), name="docs"),
     *router.urls,

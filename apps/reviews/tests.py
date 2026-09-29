@@ -94,3 +94,25 @@ def test_rating_on_product_page(client: Client, user: User, product: Product) ->
     shown = client.get(product.get_absolute_url()).context["product"]
 
     assert (shown.rating_avg, shown.rating_count) == (4.5, 2)
+
+
+def test_buyer_edits_own_review(client: Client, user: User, product: Product) -> None:
+    review = Review.objects.create(user=user, product=product, rating=5, comment="mine")
+    client.force_login(user)
+
+    client.post(reverse("reviews:edit", args=[review.pk]), {"rating": 2, "comment": "Оновлено"})
+
+    review.refresh_from_db()
+    assert (review.rating, review.comment) == (2, "Оновлено")
+
+
+def test_cannot_edit_someone_elses_review(client: Client, user: User, product: Product) -> None:
+    review = Review.objects.create(user=user, product=product, rating=5, comment="mine")
+    intruder = User.objects.create_user(username="mallory", password="secret-pass-123")
+    client.force_login(intruder)
+
+    response = client.post(reverse("reviews:edit", args=[review.pk]), {"rating": 1})
+
+    assert response.status_code == 404
+    review.refresh_from_db()
+    assert review.rating == 5  # чужий відгук не змінено

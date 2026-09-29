@@ -167,21 +167,3 @@ def create_api_order(
     Product.objects.bulk_update(products.values(), ["stock"])
     order.recalculate_total()
     return order
-
-
-@transaction.atomic
-def cancel_order(order: Order) -> bool:
-    """Скасувати замовлення й повернути товар на склад. False, якщо скасувати не можна."""
-    if not order.can_cancel:
-        return False
-
-    products = []
-    for item in order.items.select_related("product"):
-        item.product.stock += item.quantity
-        products.append(item.product)
-    if products:
-        Product.objects.bulk_update(products, ["stock"])
-
-    order.status = Order.OrderStatus.CANCELLED
-    order.save(update_fields=["status", "updated_at"])
-    return True

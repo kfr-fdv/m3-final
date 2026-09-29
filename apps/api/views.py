@@ -1,4 +1,4 @@
-from typing import Any, cast
+from typing import Any
 
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import (
@@ -7,7 +7,7 @@ from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
 )
-from rest_framework import generics, permissions, serializers, status, views, viewsets
+from rest_framework import generics, permissions, views, viewsets
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -17,7 +17,6 @@ from apps.catalog.filters import ProductFilter
 from apps.catalog.models import Product
 from apps.orders.cart import Cart
 from apps.orders.models import Order
-from apps.orders.services import cancel_order
 from apps.reviews.models import Review
 from apps.reviews.services import can_review
 
@@ -27,7 +26,6 @@ from .serializers import (
     CartLineSerializer,
     OrderCreateSerializer,
     OrderSerializer,
-    OrderStatusSerializer,
     ProductSerializer,
     RegisterSerializer,
     ReviewSerializer,
@@ -98,6 +96,25 @@ class ProductReviewsView(generics.ListCreateAPIView):
 
 
 @extend_schema_view(
+    get=extend_schema(summary="Мій відгук"),
+    put=extend_schema(summary="Оновити свій відгук"),
+    patch=extend_schema(summary="Оновити свій відгук (частково)"),
+)
+class ReviewUpdateView(generics.RetrieveUpdateAPIView):
+    """Перегляд і редагування власного відгуку — доступно лише його автору."""
+
+    serializer_class = ReviewSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "put", "patch", "head", "options"]
+
+    def get_queryset(self):
+        # Тільки власні відгуки: чужий за id віддасть 404, а не 403.
+        if getattr(self, "swagger_fake_view", False):
+            return Review.objects.none()
+        return Review.objects.filter(user=self.request.user).select_related("user")
+
+
+@extend_schema_view(
     list=extend_schema(summary="Мої замовлення"),
     retrieve=extend_schema(
         summary="Замовлення за ID",
@@ -131,21 +148,16 @@ class ProductReviewsView(generics.ListCreateAPIView):
             ),
         ],
     ),
-    update=extend_schema(summary="Змінити статус замовлення"),
-    partial_update=extend_schema(summary="Змінити статус замовлення (частково)"),
-    destroy=extend_schema(
-        summary="Скасувати замовлення",
-        responses={
-            204: None,
-            400: OpenApiResponse(description="Замовлення вже не можна скасувати."),
-        },
-    ),
 )
 class OrderViewSet(viewsets.ModelViewSet):
-    """Замовлення поточного користувача: створення, перегляд, зміна статусу, скасування."""
+    """Замовлення поточного користувача: перегляд і створення власних замовлень.
+
+    Зміна статусу та скасування через API недоступні — це робить лише персонал.
+    """
 
     permission_classes = [permissions.IsAuthenticated, IsOwner]
-    http_method_names = ["get", "post", "patch", "put", "delete", "head", "options"]
+    # Лише читання своїх замовлень і створення нового; статус/видалення закриті.
+    http_method_names = ["get", "post", "head", "options"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -155,30 +167,7 @@ class OrderViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "create":
             return OrderCreateSerializer
-        if self.action in ("update", "partial_update"):
-            return OrderStatusSerializer
         return OrderSerializer
-
-    def perform_update(self, serializer: Any) -> None:
-        order = cast(Order, serializer.instance)
-        new_status = serializer.validated_data.get("status", order.status)
-        if (
-            new_status == Order.OrderStatus.CANCELLED
-            and order.status != Order.OrderStatus.CANCELLED
-        ):
-            if not cancel_order(order):
-                raise serializers.ValidationError({"status": "Замовлення не можна скасувати."})
-        else:
-            serializer.save()
-
-    def destroy(self, request: Request, *args: object, **kwargs: object) -> Response:
-        order = self.get_object()
-        if not cancel_order(order):
-            return Response(
-                {"detail": "Замовлення не можна скасувати."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @extend_schema(

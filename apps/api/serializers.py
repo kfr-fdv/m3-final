@@ -135,12 +135,6 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"items": str(exc)}) from exc
 
 
-class OrderStatusSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Order
-        fields = ("status",)
-
-
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, validators=[validate_password])
 
